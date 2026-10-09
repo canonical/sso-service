@@ -1,0 +1,40 @@
+schema: spec-driven
+
+context: |
+  SSO Service lets a tenant of the Identity Platform sign its users in through the tenant's own OpenID Connect identity provider ("bring your own SSO"). It stores each tenant's connections to its identity providers, runs the browser side of a sign-in through one of them as the login and consent provider of a second Hydra (`hydra-sso`), behind which every customer identity provider looks like one OIDC provider (`byo-sso`) to Kratos, and is the API through which a tenant's SSO policy is written to the tenant service.
+  Stack: Go service with gRPC + HTTP/JSON gateway and four browser pages, PostgreSQL, the Ory Kratos and Ory Hydra admin APIs, the tenant service over gRPC, OpenTelemetry, Prometheus.
+
+  Vocabulary used in every artifact:
+  - user: a person who signs in. account: the user's Kratos identity.
+  - tenant: an organisation in the tenant service. personal tenant: the tenant a user has for themselves; it has no connections and no SSO policy.
+  - tenant admin: a user the gateway lets manage one tenant. platform admin: a user the gateway lets act across tenants.
+  - connection: a tenant's registration of its identity provider (issuer, client id, client secret); a draft until a test sign-in succeeds, then tested.
+  - company sign-in: a sign-in through a connection.
+  - binding: a tenant's use of one of its connections in its SSO policy, active or not. enforcement: OFF, OPTIONAL or REQUIRED.
+  - link: the Kratos OIDC credential `byo-sso:<connection id>:<subject>`, which maps an identity provider's subject to an account.
+  - ticket: one sign-in attempt, sealed into a token; nothing is stored for it.
+  - MFA: a second factor; it is the login UI's concern, never this service's.
+
+  OpenSpec intent for this repo:
+  - Specs are the single source of truth for behavior.
+  - Purpose captures concise rationale (why); Requirements capture normative behavior (what).
+  - Keep artifact prose human-readable and avoid dumping implementation details into canonical specs.
+
+  Authoritative code conventions live in repository instructions/tooling; do not duplicate them here.
+
+rules:
+  spec:
+    - Every capability spec under openspec/specs/ must include a ## Purpose section before ## Requirements
+    - The ## Purpose section is the single source of truth for design rationale (ADR-style); capture intent, goals, non-goals, and key decisions (with brief alternatives) so no separate ADR or design file is needed
+    - Keep the ## Purpose human-readable: prose and decisions, not machine-generated task lists or file-path dumps
+    - If Purpose includes a Non-goals subsection, each item must be capability-specific and describe concrete out-of-scope boundaries (avoid repeated boilerplate across specs)
+    - Requirements stay behaviour-driven (SHALL/MUST + #### Scenario blocks); the why lives in ## Purpose, the what in ## Requirements
+    - Exclude repository coding conventions from capability requirements (for example, SPDX headers, formatting, lint style, or file scaffolding rules); keep those in repository instructions/tooling
+  proposal:
+    - Keep proposals concise (under 400 words)
+    - Always include a Non-goals section
+    - Reference affected packages by name
+  tasks:
+    - Break tasks into single-package units of work
+    - Each task must reference the file(s) it touches
+    - Always include a task for updating/adding tests
