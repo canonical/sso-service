@@ -1,0 +1,20 @@
+# go binary name
+/app
+
+### Go ###
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+test.json
+test_source.json
+
+# Dependency directories
+/vendor/
+
+# gomocks auto-generated
+**/mock_*.go
+
+# rockcraft output
+*.rock
