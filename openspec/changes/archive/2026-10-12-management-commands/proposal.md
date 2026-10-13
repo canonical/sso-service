@@ -1,16 +1,16 @@
 ## Why
 
-There is no console for the management API yet. Until there is one, an operator who has to register a tenant's identity provider or change a tenant's SSO policy needs a way that does not mean writing HTTP requests by hand, and the service's charm needs something it can run from its actions, as the tenant service's charm runs `tenant-service tenant …`.
+There is no console for the management API yet. Until there is one, an operator needs a way to register a tenant's identity provider or change a tenant's SSO policy without hand-written HTTP requests. The charm of the service also needs something that it can run from its actions. The charm of the tenant service runs `tenant-service tenant …` in the same way.
 
 ## What Changes
 
-The `sso-service` binary gains management commands. Each one is a client of the running service's own API on its gRPC listener, so the checks, the logging and the errors are the API's:
+The `sso-service` binary gets management commands. Each command is a client of the running service's own API on its gRPC listener. Thus the checks, the logging and the errors are those of the API. The commands are these:
 
 - `connection list|get|create|update|delete|test`
 - `policy get|set`
 - `domains get|set`
 
-Two flags apply to all of them: `--grpc-endpoint` (default `localhost:50051`) and `--token`.
+These 2 flags apply to all the commands: `--grpc-endpoint` (default `localhost:50051`) and `--token`.
 
 Nothing changes in the service or in its API.
 

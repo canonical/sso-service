@@ -1,72 +1,92 @@
 ## Purpose
 
-The customers' identity providers are the only systems outside the platform that this service calls, and others choose the URLs: a tenant admin names the issuer, and the issuer's discovery document names the token and key endpoints. Without a guard, a tenant admin could make the service send requests into the platform's own network (server-side request forgery). This capability is that guard and the OIDC relying party built on it, used by company sign-ins and test sign-ins alike.
+The identity providers of the customers are the only systems outside the platform that this service calls. Other parties choose the URLs. A tenant admin names the issuer, and the discovery document of the issuer names the token and key endpoints. Without a guard, a tenant admin can make the service send requests into the platform's own network (server-side request forgery). This capability is that guard. It is also the OIDC relying party that is built on the guard. Company sign-ins and test sign-ins both use it.
 
 Key decisions:
 
-- **The guard is in the HTTP client, at the moment it connects.** The address is checked after the name was resolved, and every request is covered, whichever library made it. Checking the issuer's host once, at create, was turned down: the name can resolve differently later, and it says nothing about the endpoints the discovery document names.
-- **Token and key endpoints may be on other hosts than the issuer.** Requiring the issuer's origin was turned down: real providers serve them elsewhere.
-- **No redirects, no proxy.** A redirect would point the service at an address the check did not see; a proxy would hide the real destination from it.
-- **No retries, no circuit breaker.** A code works once; every call has a deadline; a provider that is down fails only its own sign-ins.
+- **The guard is in the HTTP client, at the moment it connects.** The client checks the address after it resolved the name. The guard covers every request, whichever library made it. We turned down a check of the issuer's host once, at create, because the name can resolve in a different way later. That check also says nothing about the endpoints that the discovery document names.
+- **Other hosts than the issuer can serve the token and key endpoints.** We turned down a rule that they must have the issuer's origin. Real providers serve them elsewhere.
+- **No redirects and no proxy.** A redirect can point the service at an address that the check did not see. A proxy hides the real destination from the check.
+- **No retries and no circuit breaker.** A code works once. Every call has a deadline. A provider that is down fails only its own sign-ins.
 
-Non-goals: the userinfo endpoint; refresh tokens; client authentication other than a client secret; choosing another claim than `sub` as the subject.
+Non-goals:
+
+- The userinfo endpoint.
+- Refresh tokens.
+- Client authentication other than a client secret.
+- A claim other than `sub` as the subject.
 
 ## ADDED Requirements
 
 ### Requirement: The outbound-request guard
-The system SHALL apply all of these to every request to an identity provider (discovery, token and key endpoints):
+The system SHALL apply all of these rules to every request to an identity provider (discovery, token and key endpoints):
 
-- only `https` URLs, with no userinfo;
-- a connection is opened only to a public unicast address, checked when dialling, after name resolution. Refused are private, loopback, link-local, multicast and unspecified addresses, `100.64.0.0/10`, `198.18.0.0/15`, `240.0.0.0/4`, the NAT64 ranges `64:ff9b::/96` and `64:ff9b:1::/48`, and 6to4 `2002::/16`; an IPv4-mapped IPv6 address is judged as the IPv4 address it carries;
-- no proxy is used and no redirect is followed;
-- a response body is read up to 64 KiB, and a longer one fails the request;
-- a 5xx answer counts as the provider being unavailable;
-- one call takes at most 10 seconds, and everything one operation asks of a provider (discovery, token, keys) at most 15 seconds.
+- The URL is `https` only, and it has no userinfo.
+- The service opens a connection only to a public unicast address. It checks the address when it dials, after it resolved the name.
+- The service refuses these addresses: private, loopback, link-local, multicast and unspecified addresses, `100.64.0.0/10`, `198.18.0.0/15`, `240.0.0.0/4`, the NAT64 ranges `64:ff9b::/96` and `64:ff9b:1::/48`, and 6to4 `2002::/16`.
+- The service judges an IPv4-mapped IPv6 address as the IPv4 address that it carries.
+- The service uses no proxy and follows no redirect.
+- The service reads a response body up to 64 KiB. A longer body fails the request.
+- A 5xx answer counts as a provider that is unavailable.
+- One call takes at most 10 seconds.
+- All that one operation asks of a provider (discovery, token, keys) takes at most 15 seconds.
 
-With the setting `DEV` on, plain `http` and non-public addresses are allowed and the other rules stay. `DEV` is for development and test deployments only.
+With the setting `DEV` on, the service allows plain `http` and non-public addresses. The other rules stay. Use `DEV` for development and test deployments only.
 
 #### Scenario: A discovery document that points inside the network
-- **WHEN** a provider's discovery document names a token endpoint that resolves to `10.0.0.5`
-- **THEN** the connection is refused when it is dialled, and the sign-in or test fails as a provider that cannot be used
+- **WHEN** the discovery document of a provider names a token endpoint that resolves to `10.0.0.5`
+- **THEN** the service refuses the connection when it dials
+- **AND** the sign-in or the test fails as a provider that the service cannot use
 
 ### Requirement: Discovery
-The system SHALL read a provider's configuration from `<issuer>/.well-known/openid-configuration` and refuse the document when its `issuer` is not exactly the connection's issuer, when its authorization endpoint is missing or not `https`, or when it has no token endpoint. An issuer shared by many organisations, whose document names another issuer, therefore cannot be used.
+The system SHALL read the configuration of a provider from `<issuer>/.well-known/openid-configuration`. The system SHALL refuse the document in any of these cases:
 
-Each replica keeps the document per issuer for 10 minutes. When a refresh fails because the provider is unreachable, the document in hand is used for another 10 minutes; a refresh that returns a document the service refuses fails the request instead. The check that starts a test sign-in always reads the document afresh. The provider's keys are fetched when an id_token is verified, and again when an id_token names a key the service does not have.
+- Its `issuer` is not exactly the issuer of the connection.
+- Its authorization endpoint is missing or is not `https`.
+- It has no token endpoint.
+
+For this reason the service cannot use an issuer that many organisations share and whose document names another issuer.
+
+Each replica keeps the document for each issuer for 10 minutes. When a refresh fails because the provider is unreachable, the replica uses the document that it has for another 10 minutes. When a refresh returns a document that the service refuses, the request fails instead. The check that starts a test sign-in always reads the document again. The service fetches the keys of the provider when it verifies an id_token. It fetches them again when an id_token names a key that the service does not have.
 
 #### Scenario: Another issuer in the document
 - **WHEN** the document at the connection's issuer names a different `issuer`, even one that differs by a trailing slash
-- **THEN** the provider is treated as misconfigured
+- **THEN** the service treats the provider as misconfigured
 
 ### Requirement: The authorization request and the code exchange
-The system SHALL ask every provider for the scopes `openid email`, with the authorization code flow, PKCE (S256), a `state` and a nonce. It SHALL exchange the code once, with the PKCE verifier and the connection's client credentials sent as `client_secret_basic`, or as `client_secret_post` when the discovery document lists the token endpoint's authentication methods and they include `client_secret_post` but not `client_secret_basic`.
+The system SHALL ask every provider for the scopes `openid email`. It SHALL use the authorization code flow, PKCE (S256), a `state` and a nonce. The system SHALL exchange the code once. The exchange SHALL send the PKCE verifier and the connection's client credentials. The credentials SHALL go as `client_secret_basic`, with one exception. They SHALL go as `client_secret_post` when the discovery document lists the token endpoint's authentication methods and the list includes `client_secret_post` but not `client_secret_basic`.
 
 #### Scenario: A provider that only takes the secret in the body
-- **WHEN** a provider's discovery document lists `client_secret_post` and not `client_secret_basic`
-- **THEN** the client id and secret are sent in the body of the token request
+- **WHEN** the discovery document of a provider lists `client_secret_post` and not `client_secret_basic`
+- **THEN** the service sends the client id and the secret in the body of the token request
 
 ### Requirement: The id_token checks
-The system SHALL accept an id_token only when all of these hold:
+The system SHALL accept an id_token only when all of these are true:
 
-- its signature verifies against the issuer's published keys, with RS256 or ES256;
-- `iss` is the connection's issuer and `aud` contains the connection's client id;
-- it has not expired, allowing 60 seconds of clock difference;
-- `azp`, when present, is the connection's client id, and is present when `aud` names several audiences;
-- `nonce` is the nonce the service sent;
-- `sub` is not empty, is at most 210 characters and is printable ASCII, so that `byo-sso:<connection id>:<subject>` fits the 255 characters Kratos stores a credential identifier in.
+- Its signature verifies against the published keys of the issuer, with RS256 or ES256.
+- `iss` is the issuer of the connection.
+- `aud` contains the client id of the connection.
+- It has not expired. The check allows 60 seconds of clock difference.
+- `azp`, when present, is the client id of the connection.
+- `azp` is present when `aud` names several audiences.
+- `nonce` is the nonce that the service sent.
+- `sub` is not empty, has at most 210 characters and is printable ASCII.
 
-`iat` is not checked. From an accepted id_token the system reads `sub`, `email`, `email_verified` (a boolean, or the strings `true` and `false`) and `auth_time`.
+The limits on `sub` make `byo-sso:<connection id>:<subject>` fit in the 255 characters that Kratos uses to store a credential identifier.
+
+The service does not check `iat`. From an accepted id_token the system reads `sub`, `email`, `email_verified` and `auth_time`. `email_verified` is a boolean, or the string `true` or `false`.
 
 #### Scenario: A token signed with HS256
 - **WHEN** a provider returns an id_token signed with HS256
-- **THEN** the id_token is refused
+- **THEN** the service refuses the id_token
 
 #### Scenario: A subject that is too long
-- **WHEN** an id_token's `sub` has 211 characters
-- **THEN** the id_token is refused, at a test sign-in as at a company sign-in
+- **WHEN** the `sub` of an id_token has 211 characters
+- **THEN** the service refuses the id_token
+- **AND** this is true at a test sign-in and at a company sign-in
 
 ### Requirement: How a provider's failures are told apart
-The system SHALL sort every failure into one of five kinds, which decide what a user or an admin is told (see `company-sign-in`, `test-sign-in`):
+The system SHALL sort every failure into one of 5 kinds. The kind decides what the service tells a user or an admin (see `company-sign-in`, `test-sign-in`):
 
 | kind | what it covers |
 |---|---|
@@ -76,8 +96,9 @@ The system SHALL sort every failure into one of five kinds, which decide what a 
 | id_token refused | any of the id_token checks fails |
 | code refused | any other refusal of the code exchange, or a token response with no id_token |
 
-A provider's own text SHALL NOT be shown to a user or returned by the API. In the log it is quoted and cut short.
+The system SHALL NOT show a provider's own text to a user, and the API SHALL NOT return it. In the log the service quotes the text and cuts it short.
 
 #### Scenario: A wrong client secret during a sign-in
 - **WHEN** the token endpoint answers `invalid_client` during a company sign-in
-- **THEN** the failure is "credentials refused", and the user is told company sign-in is unavailable
+- **THEN** the failure is "credentials refused"
+- **AND** the service tells the user that company sign-in is unavailable
