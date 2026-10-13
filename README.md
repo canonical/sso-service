@@ -4,6 +4,21 @@ The SSO Service lets a tenant of the Identity Platform sign its members in with 
 identity provider. It keeps the connections tenants register, signs people in through them as the login
 and consent provider of `hydra-sso`, and manages each tenant's SSO policy.
 
+## Architecture
+
+![How the SSO Service fits into the Identity Platform](docs/architecture.svg)
+
+Kratos keeps one OIDC provider, `byo-sso`, for every tenant's identity provider. That provider is a second
+Hydra, `hydra-sso`, and this service is its login and consent provider: it sends the browser to the tenant's
+identity provider, checks the answer against the tenant's SSO policy, and accepts the login.
+
+- The Login UI calls the service's sign-in API for the sign-in options and a ticket, and to confirm the
+  sign-in afterwards.
+- A tenant's SSO policy is stored by the Tenant Service. The service checks and writes it there.
+- The management API is served through the gateway, where the Authorization Service authorizes each route.
+- The connections tenants register are rows in the service's PostgreSQL database. The service uses no
+  message broker and publishes no permission events.
+
 ## Getting Started
 
 To build the service, run:
