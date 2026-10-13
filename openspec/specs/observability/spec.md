@@ -2,78 +2,106 @@
 
 ## Purpose
 
-Operators need to see whether company sign-ins succeed and why they fail, who changed a tenant's connections or policy, and whether the service answers. Reviewers of a service that handles users' addresses also need to know what reaches the logs.
+Operators need to see these things:
+
+- If company sign-ins succeed, and why they fail.
+- Who changed the connections or the policy of a tenant.
+- If the service answers.
+
+Reviewers of a service that handles the addresses of users also need to know what reaches the logs.
 
 Key decisions:
 
-- **Sign-in outcomes are counted by reason**, the same reasons users are told. The counters have no tenant or connection label: a customer's identity provider being down shows as `unavailable` outcomes and in the log.
-- **Admin actions go to the security log**, a stream of its own in the format the platform's services share.
+- **The service counts sign-in outcomes by reason.** The reasons are the same reasons that users are told. The counters have no tenant label and no connection label. When the identity provider of a customer is down, that shows as `unavailable` outcomes and in the log.
+- **Admin actions go to the security log.** This log is a stream of its own. It has the format that the services of the platform share.
 - **Sign-in log lines identify users only by digest and masked address.**
 
-Non-goals: an audit trail in the database; showing a tenant's admins the health of their identity provider; alerting rules and dashboards.
+Non-goals:
+
+- An audit trail in the database.
+- A way to show the admins of a tenant the health of their identity provider.
+- Alerting rules and dashboards.
 
 ## Requirements
 ### Requirement: Metrics
-The system SHALL expose Prometheus metrics at `GET /api/v0/metrics`, each with the label `service="sso-service"`:
+The system SHALL expose Prometheus metrics at `GET /api/v0/metrics`. Each metric SHALL have the label `service="sso-service"`. The metrics are these:
 
 | metric | labels | counts |
 |---|---|---|
-| `sso_callback_outcomes_total` | `reason` | how a company sign-in ended at `/login` or `/callback`: accepted (`linked_existing`, `account_linking`, `registration`) or rejected (the nine reasons of `company-sign-in`) |
-| `sso_first_sign_ins_total` | `outcome` | subjects with no link that were let through: `account_linking`, `registration` |
+| `sso_callback_outcomes_total` | `reason` | how a company sign-in ended at `/login` or `/callback`: accepted (`linked_existing`, `account_linking`, `registration`) or rejected (the 9 reasons of `company-sign-in`) |
+| `sso_first_sign_ins_total` | `outcome` | subjects with no link that the system let through: `account_linking`, `registration` |
 | `sso_attempts_completed_total` | | `CompleteAttempt` calls that matched |
-| `sso_complete_attempt_refused_total` | | `CompleteAttempt` calls answered `NOT_APPLICABLE` |
-| `sso_tenant_service_write_failures_total` | `rpc` | policy, domain and binding writes the tenant service did not answer; a refusal is not counted |
-| `http_response_time_seconds` | `route`, `status` | duration of every HTTP request; `route` is the method followed by the pattern of the route that served it, never the request's path: `GET/callback/id` for every connection's callback, the method and `/api/v0/sso/*` for every route of the two admin services, and `unmatched` for a request no route serves |
+| `sso_complete_attempt_refused_total` | | `CompleteAttempt` calls that the system answered with `NOT_APPLICABLE` |
+| `sso_tenant_service_write_failures_total` | `rpc` | policy, domain and binding writes that the tenant service did not answer. The system does not count a refusal |
+| `http_response_time_seconds` | `route`, `status` | duration of every HTTP request. `route` is the method, then the pattern of the route that served the request. `route` is never the path of the request. It is `GET/callback/id` for the callback of every connection, the method and `/api/v0/sso/*` for every route of the 2 admin services, and `unmatched` for a request that no route serves |
 | `storage_query_duration_seconds` | `operation`, `status` | duration of every database operation |
 
-It SHALL also expose the standard gRPC server metrics, with handling-time histograms, for calls on the gRPC listener. Refusals answered with a page and test sign-ins are not counted in `sso_callback_outcomes_total`.
+The system SHALL also expose the standard gRPC server metrics, with handling-time histograms, for calls on the gRPC listener. `sso_callback_outcomes_total` does not count test sign-ins or the refusals that the system answers with a page.
 
 #### Scenario: A refused sign-in is counted
-- **WHEN** a sign-in is rejected because the address does not match
+- **WHEN** the system rejects a sign-in because the address does not match
 - **THEN** `sso_callback_outcomes_total{reason="address_mismatch"}` goes up by one
 
 #### Scenario: Requests to paths that do not exist
 - **WHEN** requests arrive for many different paths that no route serves, or for the callbacks of many connections
-- **THEN** the first are all counted under `route="unmatched"` and the second under `route="GET/callback/id"`: no label value comes from a path
+- **THEN** the system counts all the requests of the first kind under `route="unmatched"`
+- **AND** the system counts all the requests of the second kind under `route="GET/callback/id"`
+- **AND** no label value comes from a path
 
 ### Requirement: Admin-action logs
-The system SHALL write one record to the security log, at level `info`, after each of these succeeds, naming the actor, the operation and the resource:
+The system SHALL write one record to the security log, at level `info`, after each of the actions below succeeds. The record SHALL name the actor, the operation and the resource.
 
 | action | actor | resource |
 |---|---|---|
-| `create_connection`, `update_connection`, `delete_connection`, `delete_any_connection`, `start_test_login` | the caller's token subject | the connection id |
-| `put_tenant_sso_policy`, `set_tenant_domains` | the caller's token subject | the tenant id |
+| `create_connection`, `update_connection`, `delete_connection`, `delete_any_connection`, `start_test_login` | the subject of the caller's token | the connection id |
+| `put_tenant_sso_policy`, `set_tenant_domains` | the subject of the caller's token | the tenant id |
 | `delete_link` | the account whose link was removed | the connection id |
 
-A record's `event` is `authz_admin:<actor>,<operation>,<action>`. An operation that is refused or fails writes no such record. Because the records are at level `info`, they are emitted when `LOG_LEVEL` is `debug` or `info`, and not at its default, `error`.
+The `event` of a record is `authz_admin:<actor>,<operation>,<action>`. An operation that is refused or that fails writes no such record. The records are at level `info`. Thus the system emits them when `LOG_LEVEL` is `debug` or `info`, and not at the default of `LOG_LEVEL`, `error`.
 
-The security log also records the service starting and stopping, and a valid token that was not admitted (`authz_fail`).
+The security log also records the start and the stop of the service, and a valid token that the service did not admit (`authz_fail`).
 
 #### Scenario: A connection is created
 - **WHEN** a tenant admin creates a connection and `LOG_LEVEL` is `info`
-- **THEN** the security log has a record with the admin's subject, `create_connection` and the new connection's id; at the default level it has none
+- **THEN** the security log has a record with the admin's subject, `create_connection` and the new connection's id
+- **AND** at the default level the security log has no such record
 
 #### Scenario: A refused delete
 - **WHEN** a delete is refused with `REQUIRED_NEEDS_ACTIVE_BINDING`
-- **THEN** no admin-action record is written
+- **THEN** the system writes no admin-action record
 
 ### Requirement: Sign-in logs
-The system SHALL log, in the service log at level `info`, each attempt started, each attempt confirmed or refused by `CompleteAttempt`, each sign-in accepted or rejected with its reason and a detail of the check that failed, each subject with no link let through, and each test sign-in's outcome. Failures of a dependency are logged at level `error` with their cause, and an identity provider's refusals at `warning`.
+The system SHALL log these events in the service log at level `info`:
 
-In these lines a ticket and an account id SHALL appear only as a short one-way digest, and an address only as its first character, `***` and its domain (`a***@example.com`). A receipt is never logged. Text an identity provider controls is cut short and stripped of control characters, or quoted. The error text of a failed Kratos lookup does not name the request URL either, which holds the address or link identifier that was looked up. At level `debug` every HTTP request is logged with its method, host, path, the caller's address, status, size and duration: never its query, which carries authorization codes and addresses, and no headers. Traces are not covered: with tracing on, that URL is an attribute of the span of every such lookup, so whoever can read traces can read addresses.
+- Each attempt started.
+- Each attempt that `CompleteAttempt` confirmed or refused.
+- Each sign-in accepted or rejected with its reason and a detail of the check that failed.
+- Each subject with no link that the system let through.
+- The outcome of each test sign-in.
+
+The system logs failures of a dependency at level `error` with their cause. The system logs the refusals of an identity provider at `warning`.
+
+In these lines a ticket and an account id SHALL appear only as a short one-way digest. An address SHALL appear only as its first character, `***` and its domain (`a***@example.com`). The system never logs a receipt. The system cuts short the text that an identity provider controls and strips its control characters, or the system quotes that text. The error text of a failed Kratos lookup also does not name the request URL. That URL holds the address or the link identifier that the system looked up.
+
+At level `debug` the system logs every HTTP request with its method, host, path, the address of the caller, status, size and duration. The system never logs the query of the request, which carries authorization codes and addresses. The system logs no headers.
+
+This requirement does not cover traces. With tracing on, that URL is an attribute of the span of every such lookup. Thus anyone who can read traces can read addresses.
 
 #### Scenario: A refused sign-in is logged
-- **WHEN** a sign-in for `alice@example.com` is rejected at the callback
+- **WHEN** the system rejects a sign-in for `alice@example.com` at the callback
 - **THEN** the log line has the reason, a detail, the connection id, the tenant id and `a***@example.com`
 
 ### Requirement: Status, version and traces
-The system SHALL answer `GET /api/v0/status` with `{"status": "ok", "buildInfo": {…}}` and `GET /api/v0/version` with the build's version, commit and name; neither checks a dependency. With `TRACING_ENABLED` it SHALL record OpenTelemetry spans for requests, service operations, database statements and outbound calls, and send them to `OTEL_GRPC_ENDPOINT`, or else `OTEL_HTTP_ENDPOINT`, or else write them to standard output. When the exporter of the spans cannot be created at start, the system SHALL log the error and run without tracing, as with `TRACING_ENABLED` off.
+The system SHALL answer `GET /api/v0/status` with `{"status": "ok", "buildInfo": {…}}`. The system SHALL answer `GET /api/v0/version` with the version, the commit and the name of the build. Neither route checks a dependency.
+
+With `TRACING_ENABLED` the system SHALL record OpenTelemetry spans for requests, service operations, database statements and outbound calls. The system SHALL send the spans to `OTEL_GRPC_ENDPOINT`, or else to `OTEL_HTTP_ENDPOINT`, or else write them to standard output. When the system cannot create the exporter of the spans at start, it SHALL log the error and run without tracing. This is the same as with `TRACING_ENABLED` off.
 
 #### Scenario: The trace exporter cannot be created
-- **WHEN** `serve` is started with `TRACING_ENABLED` and an `OTEL_GRPC_ENDPOINT` no exporter can be created for
-- **THEN** the error is logged, the service starts, and its requests are served without spans
+- **WHEN** `serve` starts with `TRACING_ENABLED` and an `OTEL_GRPC_ENDPOINT` for which the service cannot create an exporter
+- **THEN** the service logs the error and starts
+- **AND** the service serves its requests without spans
 
 #### Scenario: Status while a dependency is down
-- **WHEN** `GET /api/v0/status` is called while Kratos is down
+- **WHEN** a caller calls `GET /api/v0/status` while Kratos is down
 - **THEN** the system answers 200 with the status `ok`
 
