@@ -1,0 +1,53 @@
+# The management routes behind the Authorization Service: the gateway asks it
+# about every request on these paths.
+#
+# The browser pages (/login, /callback/{connection_id}, /consent, /error) are
+# not routed here: they sit on the public ingress, with no external
+# authorization. Neither is the gRPC listener, which is internal only.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sso-service-route
+  namespace: default
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: authorization-service-gateway
+      namespace: default
+  hostnames:
+    - "localhost"
+    - "iam.internal.io"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v0/sso/tenants
+        - path:
+            type: PathPrefix
+            value: /api/v0/sso/connections
+      backendRefs:
+        - name: sso-service
+          port: 8080
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: sso-service-ext-authz
+  namespace: default
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: authorization-service-gateway
+  # Delegate authorization checks to the external authorization service.
+  action: CUSTOM
+  provider:
+    name: "authorization-service"
+  rules:
+    - to:
+        - operation:
+            paths:
+              - "/api/v0/sso/tenants/*"
+              - "/api/v0/sso/connections"
+              - "/api/v0/sso/connections/*"
