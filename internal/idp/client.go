@@ -19,6 +19,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/net/http/httpproxy"
 	"golang.org/x/oauth2"
 
 	"github.com/canonical/sso-service/internal/limits"
@@ -87,7 +88,7 @@ func NewClient(config Config, tracer tracing.TracingInterface, monitor monitorin
 	policy := hostPolicy{dev: config.Dev}
 
 	return &Client{
-		http:      newHTTPClient(policy, limits.IdPTimeout),
+		http:      newHTTPClient(policy, httpproxy.FromEnvironment(), limits.IdPTimeout),
 		policy:    policy,
 		now:       time.Now,
 		providers: make(map[string]*provider),
