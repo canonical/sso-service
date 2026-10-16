@@ -76,6 +76,7 @@ The service is configured using environment variables.
 | `TRACING_ENABLED` | Enable OpenTelemetry Tracing. When the exporter cannot be created, the service logs the error and runs without tracing | `true` | No |
 | `LOG_LEVEL` | Logging Level | `error` | No |
 | `DEV` | Allow identity providers over plain http and at private addresses, and a `PUBLIC_URL` over plain http. Never in production | `false` | No |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | The proxy for all outbound requests, identity providers included, and the hosts reached without it. `NO_PROXY` must name the hosts of Kratos, `hydra-sso` and the Tenant Service | | No |
 | `PUBLIC_URL` | URL browsers reach the service at: `https`, with no query and no fragment, on the host that serves the login UI, which reads a cookie the service sets when it accepts a sign-in. A connection's redirect URI is `<PUBLIC_URL>/callback/<connection id>` | | Yes |
 | `PORT` | HTTP Server Port | `8080` | No |
 | `GRPC_PORT` | gRPC Server Port | `50051` | No |
