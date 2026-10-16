@@ -61,6 +61,7 @@ The system SHALL read these environment variables at start:
 | `LOG_LEVEL` | `error` | the level of the service's logs (see `observability`) |
 | `TRACING_ENABLED` | `true` | OpenTelemetry tracing. When the service cannot create the exporter of the traces, the service logs the error and runs without tracing (see `observability`) |
 | `OTEL_GRPC_ENDPOINT`, `OTEL_HTTP_ENDPOINT` | none | where the service sends traces |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | none | the proxy for the requests of the service, and the hosts that the service reaches without it. They apply to all the requests: those to Kratos, hydra-sso and the tenant service too. Thus `NO_PROXY` must name the hosts of those services (see `identity-provider-requests`) |
 
 The system SHALL refuse to start when one of these conditions is true:
 
