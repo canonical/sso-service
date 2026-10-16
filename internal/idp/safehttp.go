@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/net/http/httpproxy"
 
 	"github.com/canonical/sso-service/internal/limits"
 )
@@ -67,9 +68,32 @@ func (p hostPolicy) checkURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
+// checkHost refuses a host that is, or resolves to, a non-public address. It
+// is for a request sent through a proxy, where the dial check sees only the
+// proxy. The proxy resolves the name again: what it can reach is its own to
+// restrict.
+func (p hostPolicy) checkHost(ctx context.Context, host string) error {
+	if p.dev {
+		return nil
+	}
+	addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return err
+	}
+	for _, addr := range addrs {
+		if !PublicUnicast(addr) {
+			return ErrForbiddenAddress
+		}
+	}
+
+	return nil
+}
+
 // dialContext refuses a non-public address when it dials, after the name was
-// resolved, so DNS rebinding gains nothing.
-func (p hostPolicy) dialContext(timeout time.Duration) func(ctx context.Context, network, address string) (net.Conn, error) {
+// resolved, so DNS rebinding gains nothing. The proxies' addresses are dialled
+// unchecked: the operator names them.
+func (p hostPolicy) dialContext(timeout time.Duration, proxies map[string]bool) func(ctx context.Context, network, address string) (net.Conn, error) {
+	proxyDialer := &net.Dialer{Timeout: timeout}
 	dialer := &net.Dialer{Timeout: timeout}
 	if !p.dev {
 		dialer.Control = func(_, address string, _ syscall.RawConn) error {
@@ -86,7 +110,38 @@ func (p hostPolicy) dialContext(timeout time.Duration) func(ctx context.Context,
 		}
 	}
 
-	return dialer.DialContext
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		if proxies[address] {
+			return proxyDialer.DialContext(ctx, network, address)
+		}
+
+		return dialer.DialContext(ctx, network, address)
+	}
+}
+
+// proxyAddresses are the host:port pairs the transport dials for the
+// configuration's proxies, read as httpproxy reads them.
+func proxyAddresses(config *httpproxy.Config) map[string]bool {
+	ports := map[string]string{"http": "80", "https": "443", "socks5": "1080"}
+	addresses := make(map[string]bool)
+	for _, raw := range []string{config.HTTPProxy, config.HTTPSProxy} {
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			if u, err = url.Parse("http://" + raw); err != nil {
+				continue
+			}
+		}
+		port := u.Port()
+		if port == "" {
+			port = ports[u.Scheme]
+		}
+		addresses[net.JoinHostPort(u.Hostname(), port)] = true
+	}
+
+	return addresses
 }
 
 // schemeGuard refuses a request that is not https, whichever library built
@@ -132,12 +187,23 @@ func (b *cappedBody) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// newHTTPClient uses no proxy, because the dial check must see the real
-// destination, and follows no redirect.
-func newHTTPClient(policy hostPolicy, timeout time.Duration) *http.Client {
+// newHTTPClient sends a request through the proxy the configuration names for
+// its URL, after checking the request's host, and follows no redirect.
+func newHTTPClient(policy hostPolicy, proxy *httpproxy.Config, timeout time.Duration) *http.Client {
+	proxyFor := proxy.ProxyFunc()
 	transport := &http.Transport{
-		Proxy:                 nil,
-		DialContext:           policy.dialContext(timeout),
+		Proxy: func(r *http.Request) (*url.URL, error) {
+			proxyURL, err := proxyFor(r.URL)
+			if err != nil || proxyURL == nil {
+				return proxyURL, err
+			}
+			if err := policy.checkHost(r.Context(), r.URL.Hostname()); err != nil {
+				return nil, err
+			}
+
+			return proxyURL, nil
+		},
+		DialContext:           policy.dialContext(timeout, proxyAddresses(proxy)),
 		TLSHandshakeTimeout:   timeout,
 		ResponseHeaderTimeout: timeout,
 		MaxIdleConnsPerHost:   4,

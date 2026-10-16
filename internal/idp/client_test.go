@@ -21,6 +21,7 @@ import (
 	"time"
 
 	jose "github.com/go-jose/go-jose/v4"
+	"golang.org/x/net/http/httpproxy"
 	"golang.org/x/oauth2"
 
 	"github.com/canonical/sso-service/internal/limits"
@@ -60,7 +61,7 @@ func production(handler http.Handler) *Client {
 func clientWithHTTPTimeout(timeout time.Duration) *Client {
 	policy := hostPolicy{dev: true}
 
-	return &Client{http: newHTTPClient(policy, timeout), policy: policy, now: time.Now, providers: make(map[string]*provider), tracer: tracing.NewNoopTracer()}
+	return &Client{http: newHTTPClient(policy, &httpproxy.Config{}, timeout), policy: policy, now: time.Now, providers: make(map[string]*provider), tracer: tracing.NewNoopTracer()}
 }
 
 func claimsJSON(t *testing.T, claims map[string]any) []byte {
