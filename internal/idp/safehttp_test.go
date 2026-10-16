@@ -9,10 +9,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/http/httpproxy"
 
 	"github.com/canonical/sso-service/internal/limits"
 )
@@ -165,21 +168,21 @@ func TestHostPolicy_DialContext(t *testing.T) {
 	_, port, _ := net.SplitHostPort(listener.Addr().String())
 
 	t.Run("loopback", func(t *testing.T) {
-		_, err := hostPolicy{}.dialContext(time.Second)(context.Background(), "tcp", listener.Addr().String())
+		_, err := hostPolicy{}.dialContext(time.Second, nil)(context.Background(), "tcp", listener.Addr().String())
 		if !errors.Is(err, ErrForbiddenAddress) {
 			t.Errorf("expected %v, got %v", ErrForbiddenAddress, err)
 		}
 	})
 
 	t.Run("name resolving to loopback", func(t *testing.T) {
-		_, err := hostPolicy{}.dialContext(time.Second)(context.Background(), "tcp", net.JoinHostPort("localhost", port))
+		_, err := hostPolicy{}.dialContext(time.Second, nil)(context.Background(), "tcp", net.JoinHostPort("localhost", port))
 		if !errors.Is(err, ErrForbiddenAddress) {
 			t.Errorf("expected %v, got %v", ErrForbiddenAddress, err)
 		}
 	})
 
 	t.Run("dev", func(t *testing.T) {
-		conn, err := hostPolicy{dev: true}.dialContext(time.Second)(context.Background(), "tcp", listener.Addr().String())
+		conn, err := hostPolicy{dev: true}.dialContext(time.Second, nil)(context.Background(), "tcp", listener.Addr().String())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -267,7 +270,7 @@ func TestCappedBody_Read(t *testing.T) {
 }
 
 func TestNewHTTPClient(t *testing.T) {
-	client := newHTTPClient(hostPolicy{}, 3*time.Second)
+	client := newHTTPClient(hostPolicy{}, &httpproxy.Config{}, 3*time.Second)
 
 	if client.Timeout != 3*time.Second {
 		t.Errorf("expected a timeout of 3s for one request, got %s", client.Timeout)
@@ -277,5 +280,39 @@ func TestNewHTTPClient(t *testing.T) {
 	}
 	if err := client.CheckRedirect(nil, nil); !errors.Is(err, http.ErrUseLastResponse) {
 		t.Errorf("expected no redirect followed, got %v", err)
+	}
+}
+
+// Through a proxy the dial check sees only the proxy, so the request's host is
+// checked before the request goes there.
+func TestNewHTTPClient_Proxy(t *testing.T) {
+	testCases := []struct {
+		name        string
+		url         string
+		expectedErr error
+		expected    string
+	}{
+		{name: "public host", url: "https://8.8.8.8/token", expected: "8.8.8.8:443"},
+		{name: "private host", url: "https://10.0.0.1/token", expectedErr: ErrForbiddenAddress},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var connected string
+			proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				connected = r.Host
+				w.WriteHeader(http.StatusBadGateway)
+			}))
+			defer proxy.Close()
+
+			client := newHTTPClient(hostPolicy{}, &httpproxy.Config{HTTPSProxy: proxy.URL}, 3*time.Second)
+			_, err := client.Get(tc.url)
+			if tc.expectedErr != nil && !errors.Is(err, tc.expectedErr) {
+				t.Errorf("expected %v, got %v", tc.expectedErr, err)
+			}
+			if connected != tc.expected {
+				t.Errorf("expected the proxy asked for %q, got %q", tc.expected, connected)
+			}
+		})
 	}
 }
