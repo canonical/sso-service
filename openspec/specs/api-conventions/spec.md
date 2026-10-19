@@ -23,7 +23,7 @@ The system SHALL serve these interfaces:
 |---|---|---|
 | gRPC (`GRPC_PORT`) | `SSOSignInService`, `SSOTenantAdminService`, `SSOPlatformAdminService` | the platform's services, on the internal network. `SSOSignInService` is for the login UI |
 | HTTP (`PORT`) | the HTTP/JSON gateway for `SSOTenantAdminService` and `SSOPlatformAdminService` | tenant admins and platform admins, through the gateway that authorizes them |
-| HTTP (`PORT`) | the browser pages `/login`, `/callback/{connection_id}`, `/consent`, `/error` | users' browsers, from the public ingress |
+| HTTP (`PORT`) | the browser pages `/login`, `/callback/{tenant_id}`, `/consent`, `/error` | users' browsers, from the public ingress |
 | HTTP (`PORT`) | `/api/v0/status`, `/api/v0/version`, `/api/v0/metrics` | the platform's monitoring |
 
 The 2 admin services have these HTTP routes:

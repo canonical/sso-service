@@ -38,7 +38,7 @@ The system SHALL read these environment variables at start:
 
 | variable | default | meaning |
 |---|---|---|
-| `PUBLIC_URL` | required | the URL at which browsers reach the service: an `https` URL with no query and no fragment, on the host that serves the login UI (see `company-sign-in`). A connection's redirect URI is `<PUBLIC_URL>/callback/<connection id>` |
+| `PUBLIC_URL` | required | the URL at which browsers reach the service: an `https` URL with no query and no fragment, on the host that serves the login UI (see `company-sign-in`). The redirect URI of the connections of a tenant is `<PUBLIC_URL>/callback/<tenant id>` |
 | `PORT` | `8080` | HTTP listener |
 | `GRPC_PORT` | `50051` | gRPC listener. It must differ from `PORT` |
 | `DSN` | required | PostgreSQL connection string |

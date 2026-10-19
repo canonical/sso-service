@@ -31,12 +31,10 @@ A stored client secret does not decrypt when the envelope key is not the key tha
 
 The `url` is the identity provider's authorization endpoint with these parameters:
 
-- the connection's redirect URI
+- the redirect URI of the tenant that owns the connection
 - the scopes `openid email`
 - PKCE (S256)
 - a nonce
-- `prompt=login`
-- `max_age=0`
 - a sealed token as `state`
 
 The sealed token holds the connection id, the nonce, the PKCE verifier and an expiry 30 minutes ahead.
@@ -55,11 +53,11 @@ The sealed token holds the connection id, the nonce, the PKCE verifier and an ex
 - **THEN** the system answers `FAILED_PRECONDITION` with `IDP_CHECK_FAILED: The connection's client secret cannot be read: set it again.`
 
 ### Requirement: Finish a test sign-in at the connection's redirect URI
-The system SHALL treat an answer at `GET /callback/{connection_id}` as the answer of a test when its `state` opens as a test's sealed state. The system SHALL answer with a page, HTTP 400, when the state has one of these faults:
+The system SHALL treat an answer at `GET /callback/{tenant_id}` as the answer of a test when its `state` opens as a test's sealed state. The system SHALL answer with a page, HTTP 400, when the state has one of these faults:
 
-- the state names a connection that is not the connection in the path
 - the state is expired
 - the state names a connection that is gone
+- the tenant in the path does not own the state's connection
 
 The system SHALL answer with a page, HTTP 500, when it cannot read the database. A `state` that does not open as a test's state is altered, or is sealed for something else. The system takes such a `state` for the `state` of a company sign-in. The system refuses it there, because the browser's binding is missing.
 
@@ -71,7 +69,7 @@ In all other cases the system SHALL exchange the code and verify the id_token as
 | the system cannot decrypt the client secret | `Test sign-in failed`: the client secret could not be read |
 | the exchange or the id_token checks fail | `Test sign-in failed`, with the service's message for the kind of failure |
 | the id_token has no `email` | `Test sign-in failed`: the provider asserted no email address, so members cannot be matched to their accounts |
-| everything passes | `Test sign-in succeeded`, with the connection's label, and with a warning when the id_token has no `auth_time`: apps that ask for a fresh sign-in will fail through such a connection |
+| everything passes | `Test sign-in succeeded`, with the connection's label |
 
 A failed test changes nothing. A test involves no link, account, session or hydra-sso login.
 
@@ -81,10 +79,10 @@ A failed test changes nothing. A test involves no link, account, session or hydr
 - **THEN** the page says that the test sign-in succeeded
 - **AND** the connection is tested
 
-#### Scenario: The answer arrives at another connection's redirect URI
-- **WHEN** a person opens the answer of a test at `/callback/<another connection's id>`
+#### Scenario: The answer arrives at another tenant's redirect URI
+- **WHEN** a person opens the answer of a test at `/callback/<another tenant's id>`
 - **THEN** the system answers HTTP 400
-- **AND** neither connection changes
+- **AND** no connection changes
 
 ### Requirement: A connection is tested once and stays tested
 The system SHALL set `tested_at` at the first successful test of a connection. After that, the system SHALL NOT change or clear `tested_at`. The status only moves from draft to tested. Each of these events leaves `test_time` at the time of the first success:

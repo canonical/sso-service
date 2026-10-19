@@ -68,7 +68,7 @@ The system SHALL return a connection of the tenant in the path on `GetConnection
 - `create_time`
 - `update_time`
 - `test_time` (empty until tested)
-- `redirect_uri`, the URI to register at the identity provider: `<PUBLIC_URL>/callback/<connection id>`
+- `redirect_uri`, the URI to register at the identity provider: `<PUBLIC_URL>/callback/<tenant id>`, the same for all the connections of the tenant
 
 The system SHALL never return the client secret.
 
