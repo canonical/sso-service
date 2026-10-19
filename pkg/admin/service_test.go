@@ -709,7 +709,7 @@ func TestService_StartTestLogin(t *testing.T) {
 				m.idp.EXPECT().AuthCodeURL(gomock.Any(), connection, gomock.Any()).DoAndReturn(
 					func(_ context.Context, _ *types.Connection, r *idp.AuthRequest) (string, error) {
 						want := idp.AuthRequest{RedirectURI: redirectA, State: "sealed-state", Nonce: test.Nonce,
-							PKCEVerifier: test.PKCEVerifier, Reauthenticate: true}
+							PKCEVerifier: test.PKCEVerifier}
 						if *r != want {
 							return "", fmt.Errorf("unexpected authorization request %+v", r)
 						}

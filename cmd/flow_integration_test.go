@@ -469,8 +469,8 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u, _ := url.Parse(test.Url); u.Query().Get("prompt") != "login" || u.Query().Get("max_age") != "0" || u.Query().Get("redirect_uri") != conn.RedirectUri {
-		t.Fatalf("a test sign-in asks for a fresh sign-in, answered at the tenant's redirect URI: %s", test.Url)
+	if u, _ := url.Parse(test.Url); u.Query().Has("prompt") || u.Query().Has("max_age") || u.Query().Get("redirect_uri") != conn.RedirectUri {
+		t.Fatalf("a test sign-in is an ordinary sign-in, answered at the tenant's redirect URI: %s", test.Url)
 	}
 	testBrowser := p.browser(t)
 	answer := testBrowser.answerOf(p, test.Url, "tester")

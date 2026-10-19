@@ -325,11 +325,10 @@ func (s *Service) StartTestLogin(ctx context.Context, tenantID, connectionID str
 	}
 
 	target, err := s.idp.AuthCodeURL(ctx, connection, &idp.AuthRequest{
-		RedirectURI:    redirectURI,
-		State:          state,
-		Nonce:          test.Nonce,
-		PKCEVerifier:   test.PKCEVerifier,
-		Reauthenticate: true,
+		RedirectURI:  redirectURI,
+		State:        state,
+		Nonce:        test.Nonce,
+		PKCEVerifier: test.PKCEVerifier,
 	})
 	if err != nil {
 		s.logger.Warnw("failed to build the authorization request", "connection_id", connection.ID, "error", err)
