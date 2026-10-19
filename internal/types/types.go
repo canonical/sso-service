@@ -56,12 +56,7 @@ type Ticket struct {
 	ConnectionID   string `json:"c"`
 	Email          string `json:"e"`
 	Reauthenticate bool   `json:"r,omitempty"`
-	IssuedAt       int64  `json:"i"`
 	ExpiresAt      int64  `json:"x"`
-}
-
-func (t *Ticket) Issued() time.Time {
-	return time.Unix(t.IssuedAt, 0)
 }
 
 func (t *Ticket) Expired(now time.Time) bool {

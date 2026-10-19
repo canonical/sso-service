@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -227,8 +226,7 @@ func isOAuthError(err error, code string) bool {
 }
 
 // The service's own client against the mock: the test sign-in's pre-checks
-// pass, and an exchange leaves an unstated email_verified unstated and
-// carries auth_time.
+// pass, and an exchange leaves an unstated email_verified unstated.
 func TestServer_Handler_IdPClient(t *testing.T) {
 	ts := newProvider(t)
 	putUser(t, ts.URL, "entra", User{Subject: "sub-2", Email: "entra@test.example"})
@@ -253,16 +251,12 @@ func TestServer_Handler_IdPClient(t *testing.T) {
 	if u, _ := url.Parse(authURL); u.Query().Get("prompt") != "login" || u.Query().Get("max_age") != "0" {
 		t.Fatalf("re-authentication not asked: %s", authURL)
 	}
-	before := time.Now().Add(-time.Second)
 	claims, err := client.Exchange(context.Background(), connection, clientSecret, request, codeFrom(t, login(t, ts.URL, authURL, "entra")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if claims.Subject != "sub-2" || claims.Email != "entra@test.example" || claims.EmailVerified != nil {
 		t.Fatalf("claims %+v", claims)
-	}
-	if claims.AuthTime == nil || claims.AuthTime.Before(before.Truncate(time.Second)) {
-		t.Fatalf("auth_time %v", claims.AuthTime)
 	}
 }
 
