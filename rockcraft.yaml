@@ -1,0 +1,48 @@
+name: sso-service
+base: bare
+build-base: ubuntu@24.04
+version: 0.1.0 # x-release-please-version
+summary: Canonical Identity Platform SSO Service
+description: >
+  sso-service brings a tenant's own OpenID Connect provider to the Canonical
+  Identity Platform: the connections tenants register, federation with their
+  providers, and the login and consent provider of hydra-sso.
+license: AGPL-3.0
+run-user: _daemon_
+platforms:
+  amd64: null
+services:
+  sso-service:
+    override: replace
+    command: /usr/bin/sso-service serve
+    startup: enabled
+parts:
+  go-build:
+    permissions:
+      - path: etc/ssl/certs
+        owner: 584792
+        group: 584792
+        mode: '755'
+    plugin: go
+    source: .
+    source-type: local
+    build-snaps:
+      - go/1.26/stable
+    build-packages:
+      - make
+      - git
+    override-build: |
+      make build
+      install -D -m755 ./app ${CRAFT_PART_INSTALL}/opt/sso-service/bin/app
+    organize:
+      opt/sso-service/bin/app: usr/bin/sso-service
+    stage-packages:
+      - ca-certificates_data
+      - base-files_var
+      - base-files_chisel
+  deb-security-manifest:
+    plugin: make
+    source: https://github.com/canonical/rocks-security-manifest
+    source-type: git
+    source-branch: main
+    override-prime: gen_manifest
