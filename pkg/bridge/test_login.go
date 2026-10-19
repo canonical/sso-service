@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"go.opentelemetry.io/otel/trace"
 
@@ -30,9 +31,11 @@ func (s *Service) testCallback(ctx context.Context, test *types.TestState, callb
 
 		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
+	if !strings.EqualFold(connection.OwnerTenantID, callback.TenantID) {
+		return nil, ErrUnknownState
+	}
 
-	claims, failure := s.testClaims(ctx, test, connection, callback)
-	if failure != "" {
+	if failure := s.testFailure(ctx, test, connection, callback); failure != "" {
 		s.logger.Infow("test sign-in", "connection_id", connection.ID, "outcome", "failed", "error", failure)
 
 		return &Result{Page: messagePage("Test sign-in failed", failure)}, nil
@@ -45,24 +48,24 @@ func (s *Service) testCallback(ctx context.Context, test *types.TestState, callb
 	}
 	s.logger.Infow("test sign-in", "connection_id", connection.ID, "outcome", "succeeded")
 
-	return &Result{Page: testSucceededPage(connection.Label, claims.AuthTime != nil)}, nil
+	return &Result{Page: testSucceededPage(connection.Label)}, nil
 }
 
-// testClaims returns claims a sign-in would accept, or what to tell the
-// admin, in this service's own words.
-func (s *Service) testClaims(ctx context.Context, test *types.TestState, connection *types.Connection, callback *Callback) (*idp.Claims, string) {
+// testFailure returns what to tell the admin when the answer is not one a
+// sign-in would accept, in this service's own words, or nothing.
+func (s *Service) testFailure(ctx context.Context, test *types.TestState, connection *types.Connection, callback *Callback) string {
 	if callback.Error != "" {
 		s.logger.Warnw("test sign-in refused at the identity provider", "connection_id", connection.ID, "error", bounded(callback.Error))
 
-		return nil, "The identity provider refused the sign-in."
+		return "The identity provider refused the sign-in."
 	}
 
 	secret, err := s.envelope.Decrypt(connection.ClientSecret, connection.ID)
 	if err != nil {
-		return nil, "The client secret could not be read."
+		return "The client secret could not be read."
 	}
 	claims, err := s.idp.Exchange(ctx, connection, secret, &idp.AuthRequest{
-		RedirectURI:  types.RedirectURI(s.publicURL, connection.ID),
+		RedirectURI:  types.RedirectURI(s.publicURL, connection.OwnerTenantID),
 		State:        callback.State,
 		Nonce:        test.Nonce,
 		PKCEVerifier: test.PKCEVerifier,
@@ -70,11 +73,11 @@ func (s *Service) testClaims(ctx context.Context, test *types.TestState, connect
 	if err != nil {
 		s.logger.Warnw("test sign-in exchange failed", "connection_id", connection.ID, "error", err)
 
-		return nil, idp.TestError(err)
+		return idp.TestError(err)
 	}
 	if claims.Email == "" {
-		return nil, "The identity provider asserted no email address, so members cannot be matched to their accounts."
+		return "The identity provider asserted no email address, so members cannot be matched to their accounts."
 	}
 
-	return claims, ""
+	return ""
 }

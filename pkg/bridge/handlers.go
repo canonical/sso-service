@@ -42,7 +42,7 @@ func NewAPI(service ServiceInterface, tracer tracing.TracingInterface, logger lo
 
 func (a *API) RegisterEndpoints(mux *chi.Mux) {
 	mux.Get("/login", a.login)
-	mux.Get(types.CallbackPath+"/{connection_id}", a.callback)
+	mux.Get(types.CallbackPath+"/{tenant_id}", a.callback)
 	mux.Get("/consent", a.consent)
 	mux.Get("/error", a.error)
 }
@@ -122,7 +122,7 @@ func (a *API) callback(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 	result, err := a.service.Callback(ctx, &Callback{
-		ConnectionID:     strings.ToLower(chi.URLParam(r, "connection_id")),
+		TenantID:         strings.ToLower(chi.URLParam(r, "tenant_id")),
 		State:            state,
 		Code:             query.Get("code"),
 		Error:            query.Get("error"),

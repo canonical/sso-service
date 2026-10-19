@@ -16,10 +16,11 @@ const ProviderID = "byo-sso"
 
 const CallbackPath = "/callback"
 
-// RedirectURI is one per connection, so an identity provider's answer can
-// only be taken for the connection it was asked through.
-func RedirectURI(publicURL, connectionID string) string {
-	return strings.TrimRight(publicURL, "/") + CallbackPath + "/" + connectionID
+// RedirectURI is one per tenant, the same for all its connections, so an
+// identity provider's answer can only be taken for the tenant whose
+// connection it was asked through.
+func RedirectURI(publicURL, tenantID string) string {
+	return strings.TrimRight(publicURL, "/") + CallbackPath + "/" + tenantID
 }
 
 // Connection is a tenant's registration of its OIDC identity provider.
@@ -55,12 +56,7 @@ type Ticket struct {
 	ConnectionID   string `json:"c"`
 	Email          string `json:"e"`
 	Reauthenticate bool   `json:"r,omitempty"`
-	IssuedAt       int64  `json:"i"`
 	ExpiresAt      int64  `json:"x"`
-}
-
-func (t *Ticket) Issued() time.Time {
-	return time.Unix(t.IssuedAt, 0)
 }
 
 func (t *Ticket) Expired(now time.Time) bool {

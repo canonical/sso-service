@@ -83,7 +83,7 @@ The system SHALL accept an id_token only when all of these are true:
 
 The limits on `sub` make `byo-sso:<connection id>:<subject>` fit in the 255 characters that Kratos uses to store a credential identifier.
 
-The service does not check `iat`. From an accepted id_token the system reads `sub`, `email`, `email_verified` and `auth_time`. `email_verified` is a boolean, or the string `true` or `false`.
+The service does not check `iat`. From an accepted id_token the system reads `sub`, `email` and `email_verified`. `email_verified` is a boolean, or the string `true` or `false`.
 
 #### Scenario: A token signed with HS256
 - **WHEN** a provider returns an id_token signed with HS256

@@ -12,7 +12,6 @@ const (
 
 	ReasonIdPRefused         = "idp_refused"
 	ReasonInvalidToken       = "invalid_token"
-	ReasonReauthentication   = "reauthentication_not_done"
 	ReasonAddressMismatch    = "address_mismatch"
 	ReasonAddressUnconfirmed = "address_unconfirmed"
 	ReasonNotAMember         = "not_a_member"
@@ -26,7 +25,6 @@ const (
 var messages = map[string]string{
 	ReasonIdPRefused:         "Your tenant's sign-in refused the request.",
 	ReasonInvalidToken:       "Your tenant's sign-in returned an answer that could not be accepted.",
-	ReasonReauthentication:   "Your tenant's sign-in did not ask you to sign in again, as this app requires.",
 	ReasonAddressMismatch:    "The account you used at your tenant's sign-in does not match the email address you entered.",
 	ReasonAddressUnconfirmed: "Your tenant's sign-in says your email address is not confirmed.",
 	ReasonNotAMember:         "This account cannot sign in to this tenant through its company sign-in.",
