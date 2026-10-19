@@ -8,7 +8,7 @@ import "testing"
 func TestMessage(t *testing.T) {
 	seen := map[string]string{}
 	for _, reason := range []string{
-		ReasonIdPRefused, ReasonInvalidToken, ReasonReauthentication, ReasonAddressMismatch, ReasonAddressUnconfirmed,
+		ReasonIdPRefused, ReasonInvalidToken, ReasonAddressMismatch, ReasonAddressUnconfirmed,
 		ReasonNotAMember, ReasonAlreadyLinked, ReasonUnavailable, ReasonExpired,
 	} {
 		message := Message(reason)

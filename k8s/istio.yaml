@@ -1,7 +1,7 @@
 # The management routes behind the Authorization Service: the gateway asks it
 # about every request on these paths.
 #
-# The browser pages (/login, /callback/{connection_id}, /consent, /error) are
+# The browser pages (/login, /callback/{tenant_id}, /consent, /error) are
 # not routed here: they sit on the public ingress, with no external
 # authorization. Neither is the gRPC listener, which is internal only.
 apiVersion: gateway.networking.k8s.io/v1

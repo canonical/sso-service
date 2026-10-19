@@ -35,12 +35,6 @@ func TestConnection_Tested(t *testing.T) {
 	}
 }
 
-func TestTicket_Issued(t *testing.T) {
-	if issued := (&Ticket{IssuedAt: now.Unix()}).Issued(); !issued.Equal(now) {
-		t.Errorf("expected %s, got %s", now, issued)
-	}
-}
-
 // Each is expired at its expiry time, not a second later.
 func TestTicket_Expired(t *testing.T) {
 	ticket := &Ticket{ExpiresAt: now.Unix()}

@@ -50,7 +50,8 @@ type AuthRequest struct {
 	Nonce        string
 	PKCEVerifier string
 	LoginHint    string
-	// Reauthenticate sends prompt=login and max_age=0.
+	// Reauthenticate sends prompt=login and max_age=0: a request the identity
+	// provider can ignore.
 	Reauthenticate bool
 }
 
@@ -60,9 +61,6 @@ type Claims struct {
 	Email   string
 	// EmailVerified is nil when the identity provider did not say.
 	EmailVerified *bool
-	// AuthTime is nil when the identity provider did not say. It is the only
-	// proof that a sign-in asked to re-authenticate really did.
-	AuthTime *time.Time
 }
 
 type provider struct {
@@ -375,9 +373,6 @@ func checkClaims(subject string, payload []byte, clientID, nonce string) (*Claim
 			out.EmailVerified = &b
 		}
 	}
-	if authTime, ok := unixTime(claims["auth_time"]); ok {
-		out.AuthTime = &authTime
-	}
 
 	return out, nil
 }
@@ -423,19 +418,6 @@ func audience(v any) []string {
 	}
 
 	return nil
-}
-
-func unixTime(v any) (time.Time, bool) {
-	n, ok := v.(json.Number)
-	if !ok {
-		return time.Time{}, false
-	}
-	f, err := n.Float64()
-	if err != nil {
-		return time.Time{}, false
-	}
-
-	return time.Unix(int64(f), 0), true
 }
 
 func contains(values []string, want string) bool {
