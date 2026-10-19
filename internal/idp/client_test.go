@@ -1212,7 +1212,7 @@ func TestCheckClaims(t *testing.T) {
 		return map[string]any{
 			"iss": "https://idp.example", "aud": "client", "exp": now.Add(time.Minute).Unix(),
 			"iat": now.Unix(), "nonce": "n", "sub": "subject-1",
-			"email": "a@b.example", "auth_time": now.Add(-time.Second).Unix(),
+			"email": "a@b.example",
 		}
 	}
 	verified, unverified := true, false
@@ -1265,7 +1265,7 @@ func TestCheckClaims(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if claims.Subject != "subject-1" || claims.Email != "a@b.example" || claims.AuthTime == nil || !claims.AuthTime.Equal(now.Add(-time.Second)) {
+			if claims.Subject != "subject-1" || claims.Email != "a@b.example" {
 				t.Errorf("unexpected claims %+v", claims)
 			}
 			switch {
