@@ -77,7 +77,7 @@ The service is configured using environment variables.
 | `LOG_LEVEL` | Logging Level | `error` | No |
 | `DEV` | Allow identity providers over plain http and at private addresses, and a `PUBLIC_URL` over plain http. Never in production | `false` | No |
 | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | The proxy for all outbound requests, identity providers included, and the hosts reached without it. `NO_PROXY` must name the hosts of Kratos, `hydra-sso` and the Tenant Service | | No |
-| `PUBLIC_URL` | URL browsers reach the service at: `https`, with no query and no fragment, on the host that serves the login UI, which reads a cookie the service sets when it accepts a sign-in. A connection's redirect URI is `<PUBLIC_URL>/callback/<connection id>` | | Yes |
+| `PUBLIC_URL` | URL browsers reach the service at: `https`, with no query and no fragment, on the host that serves the login UI, which reads a cookie the service sets when it accepts a sign-in. The redirect URI of every connection of a tenant is `<PUBLIC_URL>/callback/<tenant id>` | | Yes |
 | `PORT` | HTTP Server Port | `8080` | No |
 | `GRPC_PORT` | gRPC Server Port | `50051` | No |
 | `DSN` | PostgreSQL Connection String | | Yes |
@@ -109,7 +109,7 @@ access token issued by `AUTHENTICATION_ISSUER`, sent as `Authorization: Bearer <
 subject is accepted; with one of them set, the token's subject must be listed or the token must carry
 the scope. The service authenticates its callers and authorizes none: the gateway in front of it does.
 
-The browser pages (`/login`, `/callback/{connection_id}`, `/consent`, `/error`) are not authenticated.
+The browser pages (`/login`, `/callback/{tenant_id}`, `/consent`, `/error`) are not authenticated.
 Neither is `SSOSignInService`, which has no HTTP route: the login UI calls it on the gRPC listener,
 which must be reachable from the internal network only.
 

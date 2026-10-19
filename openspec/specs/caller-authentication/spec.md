@@ -38,7 +38,7 @@ The system does not check the audience.
 | no token, or not a bearer token | `UNAUTHENTICATED` | 401 `{"status": 401, "message": "missing authorization header"}` |
 | the token is not valid, or not admitted | `UNAUTHENTICATED` (`invalid token`) | 401 `{"status": 401, "message": "invalid token"}` |
 
-The browser pages `/login`, `/callback/{connection_id}`, `/consent` and `/error` need no token. The routes `/api/v0/status`, `/api/v0/version` and `/api/v0/metrics` also need no token. The RPCs of `SSOSignInService` need no token. They exist on the gRPC listener only.
+The browser pages `/login`, `/callback/{tenant_id}`, `/consent` and `/error` need no token. The routes `/api/v0/status`, `/api/v0/version` and `/api/v0/metrics` also need no token. The RPCs of `SSOSignInService` need no token. They exist on the gRPC listener only.
 
 #### Scenario: A call without a token
 - **WHEN** a caller calls `GET /api/v0/sso/tenants/{tenant_id}/connections` without an `Authorization` header

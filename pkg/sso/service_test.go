@@ -194,7 +194,6 @@ func TestService_StartAttempt(t *testing.T) {
 		ConnectionID:   connA,
 		Email:          email,
 		Reauthenticate: true,
-		IssuedAt:       now.Unix(),
 		ExpiresAt:      now.Add(limits.AttemptTTL).Unix(),
 	}
 
@@ -278,7 +277,6 @@ func TestService_CompleteAttempt(t *testing.T) {
 		TenantID:     tenantID,
 		ConnectionID: connA,
 		Email:        email,
-		IssuedAt:     now.Add(-time.Minute).Unix(),
 		ExpiresAt:    now.Add(time.Minute).Unix(),
 	}
 	expired := valid

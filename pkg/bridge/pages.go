@@ -13,13 +13,8 @@ type Page struct {
 	Message string
 }
 
-func testSucceededPage(label string, authTimeReturned bool) *Page {
-	message := "The test sign-in through " + label + " succeeded. You can close this window."
-	if !authTimeReturned {
-		message += " The identity provider returned no auth_time: apps that ask for a fresh sign-in will fail through this connection."
-	}
-
-	return &Page{Title: "Test sign-in succeeded", Message: message}
+func testSucceededPage(label string) *Page {
+	return &Page{Title: "Test sign-in succeeded", Message: "The test sign-in through " + label + " succeeded. You can close this window."}
 }
 
 func messagePage(title, message string) *Page {

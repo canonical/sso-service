@@ -6,14 +6,15 @@ This capability is the browser side of a company sign-in. Kratos knows one OIDC 
 
 - hydra-sso sends the browser to `/login`.
 - The service sends the browser on to the tenant's identity provider.
-- The identity provider sends the browser back to `/callback/{connection_id}`.
+- The identity provider sends the browser back to `/callback/{tenant_id}`.
 - The service decides if hydra-sso can tell Kratos "this is subject S of connection C, with this address".
 
 The pages take no access token. A sign-in's ticket and a cookie tie the sign-in together. An accepted sign-in leaves a receipt for the login UI in the browser.
 
 Key decisions:
 
-- **A redirect URI per connection.** The service takes an answer only at the path of the connection that the sign-in started through. Thus a person who controls one connection's identity provider cannot make the service handle its answer as another connection's answer. For that reason we turned down one shared `/callback`.
+- **A redirect URI per tenant.** All the connections of a tenant share one redirect URI. A tenant admin can register it before the connection exists. The service takes an answer only at the redirect URI of the tenant that owns the sign-in's connection. Thus a person who controls one tenant's identity provider cannot make the service handle its answer as the answer of another tenant. For that reason we turned down one shared `/callback`. We also turned down a redirect URI per connection. With it, the admin must make the connection before they can register its redirect URI. All the connections of a tenant have the same admins, so a URI per connection adds no protection against them.
+- **Re-authentication is a request.** When an app asks for a fresh sign-in, the service sends `prompt=login` and `max_age=0` to the identity provider. Many providers ignore these parameters or send no `auth_time`, and the service cannot make an external provider ask again. Thus the service does not check what the provider did, and it does not claim that the user signed in again.
 - **A browser-binding cookie instead of a stored attempt.** The service sets a sealed cookie at `/login`. The callback takes the nonce, the PKCE verifier and the login challenge from that cookie, and never from the URL. An answer that a person opens in another browser does nothing.
 - **A receipt cookie for the browser that signed in.** The login UI must know that the sign-in that a ticket started is complete. The login UI must also know that the browser that it talks to completed that sign-in. Thus the callback sets a cookie, and the login UI passes that cookie on to `CompleteAttempt`. `sign-in-attempts` says why the service keeps the proof in the browser and not on a server. The cookie holds nothing about the user.
 - **Kratos writes every link.** For a subject with no link, this service only decides if the sign-in can continue. Then Kratos registers a new account, or links the subject to the existing account after the user signs in to that account another way. We turned down a design in which this service writes the link. In that design, the service must prove on its own that the user owns the account.
@@ -39,13 +40,16 @@ On `GET /login?login_challenge=<challenge>`, the system SHALL do these steps:
 
 The redirect SHALL have these parameters:
 
-- the connection's client id and redirect URI
+- the connection's client id
+- the redirect URI of the tenant that owns the connection
 - the scopes `openid email`
 - a random `state`
 - a nonce
 - a PKCE challenge (S256)
 - the ticket's address as `login_hint`
 - `prompt=login` and `max_age=0`, when the ticket asks for re-authentication
+
+The identity provider can ignore `prompt=login` and `max_age`. The system SHALL NOT check that the identity provider asked the user to sign in again.
 
 | when | answer |
 |---|---|
@@ -57,7 +61,7 @@ The redirect SHALL have these parameters:
 #### Scenario: The browser is sent to the identity provider
 - **WHEN** hydra-sso sends a browser to `/login` with a login request whose `login_hint` is a valid ticket
 - **THEN** the browser gets the binding cookie and a redirect to the identity provider of the ticket's connection
-- **AND** the redirect URI is `<PUBLIC_URL>/callback/<connection id>`
+- **AND** the redirect URI is `<PUBLIC_URL>/callback/<tenant id>`, for the tenant that owns the connection
 
 ### Requirement: The browser-binding cookie
 The system SHALL use a cookie to bind a sign-in to the browser that the sign-in started in. The name of the cookie SHALL be `__Host-sso_bind_` followed by 16 hex characters of the SHA-256 of the `state`. Thus 2 sign-ins in the same browser do not overwrite each other.
@@ -76,7 +80,7 @@ The value of the cookie SHALL be a sealed token (see `secrets`). The token holds
 - **AND** the system answers HTTP 400
 
 ### Requirement: The receipt cookie
-The system SHALL set a receipt cookie in the response of `GET /callback/{connection_id}` that accepts a sign-in. That response is the response that redirects the browser to hydra-sso. The name of the cookie is `__Host-sso_receipt_` followed by the first 16 lower-case hex digits of the SHA-256 of the ticket. Thus each attempt has a cookie of its own.
+The system SHALL set a receipt cookie in the response of `GET /callback/{tenant_id}` that accepts a sign-in. That response is the response that redirects the browser to hydra-sso. The name of the cookie is `__Host-sso_receipt_` followed by the first 16 lower-case hex digits of the SHA-256 of the ticket. Thus each attempt has a cookie of its own.
 
 The value of the cookie is the receipt (see `secrets`) of the ticket and of the subject. For the receipt, the ticket is the text in the `login_hint` of the login request. The subject is the subject that the system accepts the login request with, `<connection id>:<subject>`. The cookie is host-only with `Path=/`, `Secure`, `HttpOnly`, `SameSite=Lax` and a `Max-Age` that ends when the ticket expires.
 
@@ -107,7 +111,7 @@ The deployment must serve these pages and the login UI on the same host. As a re
 - **AND** every company sign-in ends with the answer `NOT_APPLICABLE` from `CompleteAttempt`
 
 ### Requirement: The checks at the callback, in order
-On `GET /callback/{connection_id}` with a `state` that is not the `state` of a test (see `test-sign-in`), the system SHALL make these checks in this order. The system SHALL stop at the first check that fails. A failure that the system answers with a page leaves the login request and the cookie unchanged. Every other failure rejects hydra-sso's login request with the reason shown.
+On `GET /callback/{tenant_id}` with a `state` that is not the `state` of a test (see `test-sign-in`), the system SHALL make these checks in this order. The system SHALL stop at the first check that fails. A failure that the system answers with a page leaves the login request and the cookie unchanged. Every other failure rejects hydra-sso's login request with the reason shown.
 
 | # | check | when it fails |
 |---|---|---|
@@ -117,30 +121,29 @@ On `GET /callback/{connection_id}` with a `state` that is not the `state` of a t
 | 4 | hydra-sso still knows the cookie's login challenge | page, HTTP 400 (HTTP 500 when the system cannot reach hydra-sso) |
 | 5 | the ticket in the `login_hint` of the login request opens | `expired` |
 | 6 | neither the cookie nor the ticket is expired | `expired` |
-| 7 | the ticket's connection is the connection in the path | `invalid_token` |
-| 8 | the database answers, and the connection exists | `unavailable` |
+| 7 | the database answers, and the ticket's connection exists | `unavailable` |
+| 8 | the tenant in the path owns the ticket's connection | `invalid_token` |
 | 9 | the identity provider returned no `error` | `idp_refused` |
 | 10 | the client secret decrypts | `unavailable` |
 | 11 | the system exchanges the code and the id_token passes its checks (see `identity-provider-requests`) | `unavailable` (the system cannot reach the identity provider or its keys, the identity provider refuses the credentials, or the discovery is not usable), `invalid_token` (the id_token fails a check), `idp_refused` (the code is refused) |
-| 12 | when the ticket asks for re-authentication: `auth_time` is present and not earlier than 60 seconds before the ticket was issued | `reauthentication_not_done` |
-| 13 | the id_token's `email` equals the ticket's address (the comparison ignores case) | `address_mismatch` |
-| 14 | the id_token's `email_verified` is not `false` (the system accepts an id_token that has no `email_verified`) | `address_unconfirmed` |
-| 15 | Kratos answers which account holds the link `byo-sso:<connection id>:<subject>` | `unavailable` |
-| 16 | when an account holds the link: that account's address equals the ticket's address (the comparison ignores case) | `already_linked` |
-| 17 | when no account holds the link: the rules of the next requirement | see that requirement |
+| 12 | the id_token's `email` equals the ticket's address (the comparison ignores case) | `address_mismatch` |
+| 13 | the id_token's `email_verified` is not `false` (the system accepts an id_token that has no `email_verified`) | `address_unconfirmed` |
+| 14 | Kratos answers which account holds the link `byo-sso:<connection id>:<subject>` | `unavailable` |
+| 15 | when an account holds the link: that account's address equals the ticket's address (the comparison ignores case) | `already_linked` |
+| 16 | when no account holds the link: the rules of the next requirement | see that requirement |
 
 #### Scenario: A returning user
 - **WHEN** a user signs in at the identity provider with the address that the user entered
 - **AND** the account of the user holds a link for the subject
 - **THEN** the system accepts the login request and does not call the tenant service
 
-#### Scenario: The answer comes to another connection's redirect URI
-- **WHEN** an answer for a sign-in that started through connection A arrives, with its cookie, at `/callback/<B>`
+#### Scenario: The answer comes to another tenant's redirect URI
+- **WHEN** an answer for a sign-in through a connection of tenant A arrives, with its cookie, at `/callback/<B>`
 - **THEN** the system rejects the login request with `invalid_token` before it sends the code anywhere
 
-#### Scenario: Re-authentication the provider cannot prove
+#### Scenario: Re-authentication is only a request
 - **WHEN** a sign-in that asked for re-authentication comes back with an id_token that has no `auth_time`
-- **THEN** the system rejects the login request with `reauthentication_not_done`
+- **THEN** the system makes the same checks as for any other sign-in
 
 ### Requirement: A subject with no link
 The system SHALL let a subject with no link through only when all of these checks pass. In all other cases the system SHALL reject the login request:
@@ -189,7 +192,6 @@ The system SHALL reject a login request at hydra-sso with the error `access_deni
 |---|---|
 | `idp_refused` | Your tenant's sign-in refused the request. |
 | `invalid_token` | Your tenant's sign-in returned an answer that could not be accepted. |
-| `reauthentication_not_done` | Your tenant's sign-in did not ask you to sign in again, as this app requires. |
 | `address_mismatch` | The account you used at your tenant's sign-in does not match the email address you entered. |
 | `address_unconfirmed` | Your tenant's sign-in says your email address is not confirmed. |
 | `not_a_member` | This account cannot sign in to this tenant through its company sign-in. |
@@ -199,7 +201,7 @@ The system SHALL reject a login request at hydra-sso with the error `access_deni
 
 A refusal with no login request to reject is a page titled `Sign-in failed`. The answer to `GET /error` is also a page titled `Sign-in failed`, with HTTP 400. The page is for a browser that hydra-sso sends there with an error that it was not able to give to its client. The system logs that error.
 
-Every page is HTML with `Cache-Control: no-store`, a content security policy that allows no scripts, no forms and no framing, and `X-Frame-Options: DENY`. The pages answer `GET` only. The system answers `/callback` without a connection id with HTTP 404.
+Every page is HTML with `Cache-Control: no-store`, a content security policy that allows no scripts, no forms and no framing, and `X-Frame-Options: DENY`. The pages answer `GET` only. The system answers `/callback` without a tenant id with HTTP 404.
 
 #### Scenario: The provider's error text does not reach the user
 - **WHEN** the identity provider sends the browser back with `error=access_denied&error_description=<any text>`

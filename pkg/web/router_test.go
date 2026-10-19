@@ -27,7 +27,7 @@ import (
 
 const (
 	requestTimeout = 25 * time.Second
-	connection     = "0190a0b0-0000-7000-8000-00000000000a"
+	tenant         = "11111111-1111-4111-8111-111111111111"
 )
 
 // admin is both admin services, as the one handler behind them is. It keeps
@@ -133,8 +133,8 @@ func TestNewRouter(t *testing.T) {
 		{path: "/login", code: http.StatusBadRequest},
 		{path: "/login?login_challenge=lc", code: http.StatusFound},
 		{path: "/consent?consent_challenge=cc", code: http.StatusFound},
-		// A connection's callback; there is none without a connection.
-		{path: "/callback/" + connection + "?state=st&code=c", code: http.StatusSeeOther},
+		// A tenant's callback; there is none without a tenant.
+		{path: "/callback/" + tenant + "?state=st&code=c", code: http.StatusSeeOther},
 		{path: "/callback?state=st&code=c", code: http.StatusNotFound},
 	}
 
@@ -157,8 +157,8 @@ func TestNewRouter(t *testing.T) {
 			t.Errorf("%s %s: %d %s", method, tc.path, w.Code, w.Body.String())
 		}
 	}
-	if browser.callback == nil || browser.callback.ConnectionID != connection || browser.callback.State != "st" {
-		t.Errorf("the callback's connection is the one in its path: %+v", browser.callback)
+	if browser.callback == nil || browser.callback.TenantID != tenant || browser.callback.State != "st" {
+		t.Errorf("the callback's tenant is the one in its path: %+v", browser.callback)
 	}
 }
 
@@ -188,9 +188,9 @@ func TestNewRouter_RouteLabel(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{name: "a page with an id in its path", path: "/callback/" + connection + "?state=st&code=c", expected: "GET/callback/id"},
+		{name: "a page with an id in its path", path: "/callback/" + tenant + "?state=st&code=c", expected: "GET/callback/id"},
 		{name: "the mounted gateway", path: "/api/v0/sso/tenants/t/connections", expected: "GET/api/v0/sso/*"},
-		{name: "no route", path: "/callback/" + connection + "/more", expected: "unmatched"},
+		{name: "no route", path: "/callback/" + tenant + "/more", expected: "unmatched"},
 	}
 
 	for _, tc := range testCases {
@@ -314,7 +314,7 @@ func TestNewRouter_Deadline(t *testing.T) {
 
 	t.Run("browser page", func(t *testing.T) {
 		started := time.Now()
-		router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/callback/"+connection+"?state=st&code=c", nil))
+		router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/callback/"+tenant+"?state=st&code=c", nil))
 		bounded(t, browser.ctx, started)
 	})
 	t.Run("tenant admin route", func(t *testing.T) {

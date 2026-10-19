@@ -55,8 +55,8 @@ func TestAPI_RegisterEndpoints(t *testing.T) {
 	}{
 		{name: "callback without a connection", method: http.MethodGet, path: "/callback?state=st&code=c", expectedStatus: http.StatusNotFound},
 		{name: "callback with a trailing slash", method: http.MethodGet, path: "/callback/?state=st&code=c", expectedStatus: http.StatusNotFound},
-		{name: "callback with a longer path", method: http.MethodGet, path: "/callback/" + connA + "/extra?state=st&code=c", expectedStatus: http.StatusNotFound},
-		{name: "callback by post", method: http.MethodPost, path: "/callback/" + connA + "?state=st&code=c", expectedStatus: http.StatusMethodNotAllowed},
+		{name: "callback with a longer path", method: http.MethodGet, path: "/callback/" + tenantID + "/extra?state=st&code=c", expectedStatus: http.StatusNotFound},
+		{name: "callback by post", method: http.MethodPost, path: "/callback/" + tenantID + "?state=st&code=c", expectedStatus: http.StatusMethodNotAllowed},
 		{name: "login by post", method: http.MethodPost, path: "/login?login_challenge=lc", expectedStatus: http.StatusMethodNotAllowed},
 	}
 
@@ -169,13 +169,13 @@ func TestAPI_callback(t *testing.T) {
 		expectedReceipt bool
 	}{
 		{
-			// The connection in the path reaches the service in lower case.
+			// The tenant in the path reaches the service in lower case.
 			name:    "success",
-			path:    "/callback/" + strings.ToUpper(connA) + "?state=st&code=c&error=e&error_description=d",
+			path:    "/callback/" + strings.ToUpper(tenantID) + "?state=st&code=c&error=e&error_description=d",
 			cookies: map[string]string{"st": "bind", "other": "other-bind"},
 			setupMocks: func(mockSvc *MockServiceInterface) {
 				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{
-					ConnectionID: connA, State: "st", Code: "c", Error: "e", ErrorDescription: "d", Binding: "bind",
+					TenantID: tenantID, State: "st", Code: "c", Error: "e", ErrorDescription: "d", Binding: "bind",
 				}).Return(&Result{Redirect: accepted, Receipt: &Receipt{Ticket: "ticket", Value: "receipt", MaxAge: 1740}}, nil)
 			},
 			expectedStatus:   http.StatusSeeOther,
@@ -185,10 +185,10 @@ func TestAPI_callback(t *testing.T) {
 		},
 		{
 			name:    "sign-in refused",
-			path:    "/callback/" + connA + "?state=st&code=c",
+			path:    "/callback/" + tenantID + "?state=st&code=c",
 			cookies: map[string]string{"st": "bind"},
 			setupMocks: func(mockSvc *MockServiceInterface) {
-				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{ConnectionID: connA, State: "st", Code: "c", Binding: "bind"}).
+				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{TenantID: tenantID, State: "st", Code: "c", Binding: "bind"}).
 					Return(&Result{Redirect: rejected}, nil)
 			},
 			expectedStatus:   http.StatusSeeOther,
@@ -197,18 +197,18 @@ func TestAPI_callback(t *testing.T) {
 		},
 		{
 			name:    "another state's cookie",
-			path:    "/callback/" + connA + "?state=st&code=c",
+			path:    "/callback/" + tenantID + "?state=st&code=c",
 			cookies: map[string]string{"other": "other-bind"},
 			setupMocks: func(mockSvc *MockServiceInterface) {
-				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{ConnectionID: connA, State: "st", Code: "c"}).Return(nil, ErrBindingMissing)
+				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{TenantID: tenantID, State: "st", Code: "c"}).Return(nil, ErrBindingMissing)
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name: "page",
-			path: "/callback/" + connA + "?state=sealed-state&code=c",
+			path: "/callback/" + tenantID + "?state=sealed-state&code=c",
 			setupMocks: func(mockSvc *MockServiceInterface) {
-				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{ConnectionID: connA, State: "sealed-state", Code: "c"}).
+				mockSvc.EXPECT().Callback(gomock.Any(), &Callback{TenantID: tenantID, State: "sealed-state", Code: "c"}).
 					Return(&Result{Page: messagePage("Test sign-in succeeded", "ok")}, nil)
 			},
 			expectedStatus:  http.StatusOK,
@@ -217,7 +217,7 @@ func TestAPI_callback(t *testing.T) {
 		},
 		{
 			name: "binding mismatch",
-			path: "/callback/" + connA + "?state=st&code=c",
+			path: "/callback/" + tenantID + "?state=st&code=c",
 			setupMocks: func(mockSvc *MockServiceInterface) {
 				mockSvc.EXPECT().Callback(gomock.Any(), gomock.Any()).Return(nil, ErrBindingMismatch)
 			},
@@ -225,7 +225,7 @@ func TestAPI_callback(t *testing.T) {
 		},
 		{
 			name: "unknown state",
-			path: "/callback/" + connA + "?state=st&code=c",
+			path: "/callback/" + tenantID + "?state=st&code=c",
 			setupMocks: func(mockSvc *MockServiceInterface) {
 				mockSvc.EXPECT().Callback(gomock.Any(), gomock.Any()).Return(nil, ErrUnknownState)
 			},
@@ -233,7 +233,7 @@ func TestAPI_callback(t *testing.T) {
 		},
 		{
 			name: "service error",
-			path: "/callback/" + connA + "?state=st&code=c",
+			path: "/callback/" + tenantID + "?state=st&code=c",
 			setupMocks: func(mockSvc *MockServiceInterface) {
 				mockSvc.EXPECT().Callback(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed to reject login request: dial tcp 10.1.2.3:4445"))
 			},

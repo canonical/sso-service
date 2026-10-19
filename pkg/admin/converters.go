@@ -22,7 +22,7 @@ func connectionToProto(c *types.Connection, publicURL string) *v0sso.Connection 
 		CreatedBy:     c.CreatedBy,
 		CreateTime:    c.CreatedAt.UTC().Format(time.RFC3339),
 		UpdateTime:    c.UpdatedAt.UTC().Format(time.RFC3339),
-		RedirectUri:   types.RedirectURI(publicURL, c.ID),
+		RedirectUri:   types.RedirectURI(publicURL, c.OwnerTenantID),
 	}
 	if c.Tested() {
 		pb.Status = v0sso.ConnectionStatus_CONNECTION_STATUS_TESTED
