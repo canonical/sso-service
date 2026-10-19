@@ -31,13 +31,14 @@ import (
 //go:generate mockgen -build_flags=--mod=mod -package bridge -destination ./mock_tracing.go -source=../../internal/tracing/interfaces.go
 
 const (
-	tenantID   = "11111111-1111-4111-8111-111111111111"
-	identityID = "6c2f1a8e-1f0a-4c3b-9d7e-2b1d6f0e4a11"
-	connA      = "0190a0b0-0000-7000-8000-00000000000a"
-	connB      = "0190a0b0-0000-7000-8000-00000000000b"
-	email      = "alice@test.example"
-	publicURL  = "https://sso.example"
-	redirectA  = publicURL + "/callback/" + connA
+	tenantID      = "11111111-1111-4111-8111-111111111111"
+	otherTenantID = "22222222-2222-4222-8222-222222222222"
+	identityID    = "6c2f1a8e-1f0a-4c3b-9d7e-2b1d6f0e4a11"
+	connA         = "0190a0b0-0000-7000-8000-00000000000a"
+	connB         = "0190a0b0-0000-7000-8000-00000000000b"
+	email         = "alice@test.example"
+	publicURL     = "https://sso.example"
+	redirectA     = publicURL + "/callback/" + tenantID
 
 	// Where hydra-sso sends the browser after a login request is rejected or
 	// accepted.
@@ -176,21 +177,21 @@ func newSignIn() *types.SignIn {
 	return &types.SignIn{State: "st", Nonce: "n", PKCEVerifier: "v", LoginChallenge: "lc", ExpiresAt: testNow.Add(29 * time.Minute).Unix()}
 }
 
-// newConnection is connA, tested, its client secret "secret".
+// newConnection is connA of tenantID, tested, its client secret "secret".
 func newConnection() *types.Connection {
 	sealed, err := testEnvelope.Encrypt("secret", connA)
 	if err != nil {
 		panic(err)
 	}
 	tested := testNow.Add(-24 * time.Hour)
-	return &types.Connection{ID: connA, Label: "Acme Okta", TestedAt: &tested, ClientSecret: sealed}
+	return &types.Connection{ID: connA, OwnerTenantID: tenantID, Label: "Acme Okta", TestedAt: &tested, ClientSecret: sealed}
 }
 
 // answer is the identity provider's answer to a sign-in through connA, at
-// connA's redirect URI, in the browser the sign-in started in.
+// its tenant's redirect URI, in the browser the sign-in started in.
 func answer(t *testing.T) *Callback {
 	t.Helper()
-	return &Callback{ConnectionID: connA, State: "st", Code: "code", Binding: seal(t, types.PurposeSignIn, newSignIn())}
+	return &Callback{TenantID: tenantID, State: "st", Code: "code", Binding: seal(t, types.PurposeSignIn, newSignIn())}
 }
 
 func verified(v bool) *bool { return &v }
@@ -438,12 +439,12 @@ func TestService_Callback_Binding(t *testing.T) {
 	}{
 		{
 			name:        "no state",
-			callback:    func(t *testing.T) *Callback { return &Callback{ConnectionID: connA, Code: "code"} },
+			callback:    func(t *testing.T) *Callback { return &Callback{TenantID: tenantID, Code: "code"} },
 			expectedErr: ErrUnknownState,
 		},
 		{
 			name:        "missing",
-			callback:    func(t *testing.T) *Callback { return &Callback{ConnectionID: connA, State: "st", Code: "code"} },
+			callback:    func(t *testing.T) *Callback { return &Callback{TenantID: tenantID, State: "st", Code: "code"} },
 			expectedErr: ErrBindingMissing,
 		},
 		{
@@ -451,21 +452,21 @@ func TestService_Callback_Binding(t *testing.T) {
 			callback: func(t *testing.T) *Callback {
 				other := newSignIn()
 				other.State = "other"
-				return &Callback{ConnectionID: connA, State: "st", Code: "code", Binding: seal(t, types.PurposeSignIn, other)}
+				return &Callback{TenantID: tenantID, State: "st", Code: "code", Binding: seal(t, types.PurposeSignIn, other)}
 			},
 			expectedErr: ErrBindingMismatch,
 		},
 		{
 			name: "forged",
 			callback: func(t *testing.T) *Callback {
-				return &Callback{ConnectionID: connA, State: "st", Code: "code", Binding: "Zm9yZ2Vk"}
+				return &Callback{TenantID: tenantID, State: "st", Code: "code", Binding: "Zm9yZ2Vk"}
 			},
 			expectedErr: ErrBindingMismatch,
 		},
 		{
 			name: "sealed for another purpose",
 			callback: func(t *testing.T) *Callback {
-				return &Callback{ConnectionID: connA, State: "st", Code: "code", Binding: seal(t, types.PurposeTicket, newSignIn())}
+				return &Callback{TenantID: tenantID, State: "st", Code: "code", Binding: seal(t, types.PurposeTicket, newSignIn())}
 			},
 			expectedErr: ErrBindingMismatch,
 		},
@@ -481,7 +482,7 @@ func TestService_Callback_Binding(t *testing.T) {
 			callback: func(t *testing.T) *Callback {
 				expired := newSignIn()
 				expired.ExpiresAt = testNow.Unix()
-				return &Callback{ConnectionID: connA, State: "st", Code: "code", Binding: seal(t, types.PurposeSignIn, expired)}
+				return &Callback{TenantID: tenantID, State: "st", Code: "code", Binding: seal(t, types.PurposeSignIn, expired)}
 			},
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.expectLoginRequest(seal(t, types.PurposeTicket, newTicket()))
@@ -513,37 +514,39 @@ func TestService_Callback_Binding(t *testing.T) {
 	}
 }
 
-// An answer is only taken at the redirect URI of the connection the sign-in
-// was started with: at any other it is rejected before the connection is
-// read or the code redeemed.
+// An answer is only taken at the redirect URI of the tenant that owns the
+// connection the sign-in was started with: at any other it is rejected before
+// the code is redeemed.
 func TestService_Callback_RedirectURI(t *testing.T) {
 	testCases := []struct {
 		name             string
-		connectionID     string
+		tenantID         string
 		setupMocks       func(t *testing.T, m *mocks)
 		expectedRedirect string
 	}{
 		{
-			name:         "another connection",
-			connectionID: connB,
+			name:     "another tenant",
+			tenantID: otherTenantID,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.expectLoginRequest(seal(t, types.PurposeTicket, newTicket()))
+				m.storage.EXPECT().GetConnection(gomock.Any(), connA).Return(newConnection(), nil)
 				m.expectReject(ReasonInvalidToken)
 			},
 			expectedRedirect: rejected,
 		},
 		{
-			name:         "no connection",
-			connectionID: "",
+			name:     "no tenant",
+			tenantID: "",
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.expectLoginRequest(seal(t, types.PurposeTicket, newTicket()))
+				m.storage.EXPECT().GetConnection(gomock.Any(), connA).Return(newConnection(), nil)
 				m.expectReject(ReasonInvalidToken)
 			},
 			expectedRedirect: rejected,
 		},
 		{
-			name:         "the ticket's connection in upper case",
-			connectionID: strings.ToUpper(connA),
+			name:     "the tenant in upper case",
+			tenantID: strings.ToUpper(tenantID),
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.expectExchange(t, newTicket(), &idp.Claims{Subject: "s", Email: email})
 				m.kratos.EXPECT().ListByIdentifier(gomock.Any(), "byo-sso:"+connA+":s").Return([]kratos.Identity{*account(identityID, email, "")}, nil)
@@ -556,7 +559,7 @@ func TestService_Callback_RedirectURI(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			request := answer(t)
-			request.ConnectionID = tc.connectionID
+			request.TenantID = tc.tenantID
 
 			result, err := runCallback(t, request, tc.setupMocks)
 

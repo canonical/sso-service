@@ -161,7 +161,7 @@ func startPlaneWith(t *testing.T, verifier authentication.TokenVerifierInterface
 
 	// The company IdP, over plain http on loopback: only a development
 	// deployment (DEV) talks to it. Its one client has every connection's
-	// redirect URI: sso-service's callback, which ends in the connection's id.
+	// redirect URI: sso-service's callback, which ends in the tenant's id.
 	idpServer := httptest.NewUnstartedServer(nil)
 	p.idpURL = "http://" + idpServer.Listener.Addr().String()
 	p.idp, err = mockidp.New(mockidp.Config{Issuer: p.idpURL, ClientID: "mock-client", ClientSecret: "mock-secret",
@@ -274,7 +274,7 @@ func (b *browser) post(target string, form url.Values) *http.Response {
 
 // answerOf logs in at the mock IdP from its authorization URL and returns
 // the callback URL the IdP sends the browser back to: its answer, on its way
-// to the connection's redirect URI.
+// to the redirect URI of the connection's tenant.
 func (b *browser) answerOf(p *plane, authorizeURL, login string) string {
 	b.t.Helper()
 	back := b.post(p.idpURL+"/authorize", formFrom(authorizeURL, login))
@@ -372,8 +372,8 @@ func (p *plane) tested(t *testing.T, tenant, label string) *v0sso.Connection {
 	return got.Connection
 }
 
-// elsewhere is the IdP's answer for one connection's redirect URI,
-// addressed to another connection's.
+// elsewhere is the IdP's answer for one tenant's redirect URI, addressed to
+// another tenant's.
 func elsewhere(t *testing.T, answer, from, to string) string {
 	t.Helper()
 	if !strings.Contains(answer, "/callback/"+from+"?") {
@@ -420,8 +420,8 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 	acme := p.tenants.tenant("Acme")
 	p.tenants.join(acme, ownerID)
 
-	// A tenant admin registers the connection: a draft, with a redirect URI
-	// of its own to register at the IdP.
+	// A tenant admin registers the connection: a draft, with the tenant's
+	// redirect URI to register at the IdP.
 	created, err := p.admin.CreateConnection(as("owner"), &v0sso.CreateConnectionRequest{
 		TenantId: acme, Label: "Acme Mock", Issuer: p.idpURL,
 		ClientId: "mock-client", ClientSecret: "mock-secret",
@@ -430,7 +430,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := created.Connection
-	if conn.Status != v0sso.ConnectionStatus_CONNECTION_STATUS_DRAFT || conn.RedirectUri != p.ssoURL+"/callback/"+conn.Id || conn.CreatedBy != ownerID {
+	if conn.Status != v0sso.ConnectionStatus_CONNECTION_STATUS_DRAFT || conn.RedirectUri != p.ssoURL+"/callback/"+acme || conn.CreatedBy != ownerID {
 		t.Fatalf("connection %v", conn)
 	}
 	// Another tenant's path sees none of Acme's connections (the gateway
@@ -470,7 +470,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	if u, _ := url.Parse(test.Url); u.Query().Get("prompt") != "login" || u.Query().Get("max_age") != "0" || u.Query().Get("redirect_uri") != conn.RedirectUri {
-		t.Fatalf("a test sign-in asks for a fresh sign-in, answered at the connection's redirect URI: %s", test.Url)
+		t.Fatalf("a test sign-in asks for a fresh sign-in, answered at the tenant's redirect URI: %s", test.Url)
 	}
 	testBrowser := p.browser(t)
 	answer := testBrowser.answerOf(p, test.Url, "tester")
@@ -515,7 +515,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		challenge := p.hydra.challenge(start.Ticket)
 		authorize := b.toIdP(p, challenge)
 		if u, _ := url.Parse(authorize); u.Query().Get("redirect_uri") != conn.RedirectUri || u.Query().Get("login_hint") != "alice@test.example" {
-			t.Fatalf("the IdP is asked to answer at the connection's redirect URI: %s", authorize)
+			t.Fatalf("the IdP is asked to answer at the tenant's redirect URI: %s", authorize)
 		}
 		back := b.atIdP(p, authorize, "alice")
 		if back.StatusCode != http.StatusSeeOther || p.hydra.acceptedFor(challenge) != conn.Id+":alice-sub" {
@@ -599,11 +599,11 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		}
 	})
 
-	// Every connection has a redirect URI of its own, and an answer is only
-	// taken at the one of the connection it was asked through: an identity
-	// provider (or whoever controls a tenant's connection) cannot have its
-	// answer handled as another connection's.
-	t.Run("answer at another connection's callback", func(t *testing.T) {
+	// Every tenant has a redirect URI of its own, and an answer is only taken
+	// at the one of the tenant whose connection it was asked through: an
+	// identity provider (or whoever controls a tenant's connection) cannot
+	// have its answer handled as another tenant's.
+	t.Run("answer at another tenant's callback", func(t *testing.T) {
 		// Another tenant's connection, at the same identity provider.
 		theirs := p.tested(t, other, "Other Mock")
 
@@ -619,7 +619,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 			cookies := b.client.Jar.Cookies(ssoURL)
 			answer := b.answerOf(p, authorize, "alice")
 
-			misdelivered := b.get(elsewhere(t, answer, conn.Id, theirs.Id))
+			misdelivered := b.get(elsewhere(t, answer, acme, other))
 			if misdelivered.StatusCode != http.StatusSeeOther || p.hydra.rejectedFor(challenge) != bridge.Message(bridge.ReasonInvalidToken) {
 				t.Fatalf("expected the sign-in rejected as an answer that cannot be accepted: %d, rejected %q", misdelivered.StatusCode, p.hydra.rejectedFor(challenge))
 			}
@@ -655,7 +655,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 			b := p.browser(t)
 			challenge := p.hydra.challenge(start.Ticket)
 			answer := b.answerOf(p, b.toIdP(p, challenge), "eve")
-			b.get(elsewhere(t, answer, theirs.Id, conn.Id))
+			b.get(elsewhere(t, answer, other, acme))
 			if p.hydra.rejectedFor(challenge) != bridge.Message(bridge.ReasonInvalidToken) || p.hydra.acceptedFor(challenge) != "" {
 				t.Fatalf("rejected %q, accepted %q", p.hydra.rejectedFor(challenge), p.hydra.acceptedFor(challenge))
 			}
@@ -676,15 +676,13 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 			b := p.browser(t)
 			answer := b.answerOf(p, test.Url, "tester")
 
-			for name, to := range map[string]string{"another tenant's connection": theirs.Id, "the tenant's other connection": conn.Id} {
-				if misdelivered := b.get(elsewhere(t, answer, id, to)); misdelivered.StatusCode != http.StatusBadRequest {
-					t.Fatalf("%s: expected the answer refused, got %d", name, misdelivered.StatusCode)
-				}
+			if misdelivered := b.get(elsewhere(t, answer, acme, other)); misdelivered.StatusCode != http.StatusBadRequest {
+				t.Fatalf("expected the answer refused, got %d", misdelivered.StatusCode)
 			}
 			if got, _ := p.admin.GetConnection(as("owner"), &v0sso.GetConnectionRequest{TenantId: acme, ConnectionId: id}); got.GetConnection().GetStatus() != v0sso.ConnectionStatus_CONNECTION_STATUS_DRAFT {
 				t.Fatalf("still a draft: %v", got)
 			}
-			// Nor did it test the connection it was delivered to.
+			// Nor did it test the other tenant's connection.
 			if theirsNow, _ := p.admin.GetConnection(as("owner"), &v0sso.GetConnectionRequest{TenantId: other, ConnectionId: theirs.Id}); theirsNow.GetConnection().GetTestTime() != theirs.TestTime {
 				t.Fatalf("the other connection's test changed: %v", theirsNow)
 			}
@@ -701,7 +699,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 			}
 		})
 
-		t.Run("callback without a connection", func(t *testing.T) {
+		t.Run("callback without a tenant", func(t *testing.T) {
 			if bare := p.browser(t).get(p.ssoURL + "/callback?state=st&code=c"); bare.StatusCode != http.StatusNotFound {
 				t.Fatalf("expected 404, got %d", bare.StatusCode)
 			}

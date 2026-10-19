@@ -51,7 +51,7 @@ type Receipt struct {
 }
 
 type Callback struct {
-	ConnectionID     string
+	TenantID         string
 	State            string
 	Code             string
 	Error            string
@@ -173,7 +173,7 @@ func (s *Service) StartLogin(ctx context.Context, challenge string) (string, *Bi
 	}
 
 	target, err := s.idp.AuthCodeURL(ctx, connection, &idp.AuthRequest{
-		RedirectURI:    types.RedirectURI(s.publicURL, connection.ID),
+		RedirectURI:    types.RedirectURI(s.publicURL, connection.OwnerTenantID),
 		State:          signIn.State,
 		Nonce:          signIn.Nonce,
 		PKCEVerifier:   signIn.PKCEVerifier,
@@ -217,10 +217,6 @@ func (s *Service) Callback(ctx context.Context, callback *Callback) (*Result, er
 	// belongs to a sign-in, and has to match the binding of the browser.
 	test := new(types.TestState)
 	if err := s.envelope.Open(types.PurposeTestState, callback.State, test); err == nil {
-		if !strings.EqualFold(test.ConnectionID, callback.ConnectionID) {
-			return nil, ErrUnknownState
-		}
-
 		return s.testCallback(ctx, test, callback)
 	}
 
@@ -250,9 +246,6 @@ func (s *Service) Callback(ctx context.Context, callback *Callback) (*Result, er
 	if now := s.now(); signIn.Expired(now) || ticket.Expired(now) {
 		return s.reject(ctx, f, ReasonExpired, "sign-in expired")
 	}
-	if !strings.EqualFold(ticket.ConnectionID, callback.ConnectionID) {
-		return s.reject(ctx, f, ReasonInvalidToken, "the answer came to another connection's redirect URI")
-	}
 
 	connection, err := s.storage.GetConnection(ctx, ticket.ConnectionID)
 	if errors.Is(err, storage.ErrNotFound) {
@@ -262,6 +255,9 @@ func (s *Service) Callback(ctx context.Context, callback *Callback) (*Result, er
 		s.recordError(span, "failed to get connection", err, "connection_id", ticket.ConnectionID)
 
 		return s.reject(ctx, f, ReasonUnavailable, "storage lookup failed")
+	}
+	if !strings.EqualFold(connection.OwnerTenantID, callback.TenantID) {
+		return s.reject(ctx, f, ReasonInvalidToken, "the answer came to another tenant's redirect URI")
 	}
 	if callback.Error != "" {
 		s.logger.Warnw("identity provider refused the authorization",
@@ -279,7 +275,7 @@ func (s *Service) Callback(ctx context.Context, callback *Callback) (*Result, er
 
 	// The code is single use: a replayed callback fails here.
 	claims, err := s.idp.Exchange(ctx, connection, secret, &idp.AuthRequest{
-		RedirectURI:  types.RedirectURI(s.publicURL, connection.ID),
+		RedirectURI:  types.RedirectURI(s.publicURL, connection.OwnerTenantID),
 		State:        signIn.State,
 		Nonce:        signIn.Nonce,
 		PKCEVerifier: signIn.PKCEVerifier,

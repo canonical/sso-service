@@ -31,7 +31,7 @@ func TestService_testCallback(t *testing.T) {
 		return c
 	}
 	// expectExchange redeems the code as a sign-in does: with the test's own
-	// values, at the connection's own redirect URI.
+	// values, at the redirect URI of the connection's tenant.
 	expectExchange := func(m *mocks, connection *types.Connection, state string, claims *idp.Claims, err error) {
 		m.storage.EXPECT().GetConnection(gomock.Any(), connA).Return(connection, nil)
 		m.idp.EXPECT().Exchange(gomock.Any(), connection, "secret",
@@ -43,7 +43,7 @@ func TestService_testCallback(t *testing.T) {
 		// state is the callback's state; nil is a valid test's.
 		state func(t *testing.T) string
 		// callback is the identity provider's answer; nil is a code at
-		// connA's redirect URI.
+		// the redirect URI of connA's tenant.
 		callback     func(state string) *Callback
 		setupMocks   func(m *mocks, state string)
 		expectedPage *Page
@@ -86,7 +86,7 @@ func TestService_testCallback(t *testing.T) {
 			// identity provider's own words.
 			name: "idp refused",
 			callback: func(state string) *Callback {
-				return &Callback{ConnectionID: connA, State: state, Error: "<script>access_denied"}
+				return &Callback{TenantID: tenantID, State: state, Error: "<script>access_denied"}
 			},
 			setupMocks: func(m *mocks, state string) {
 				m.storage.EXPECT().GetConnection(gomock.Any(), connA).Return(draft(), nil)
@@ -132,17 +132,23 @@ func TestService_testCallback(t *testing.T) {
 			expectedErr: storage.ErrTimeout,
 		},
 		{
-			// Nothing is read or redeemed.
-			name: "another connection's redirect URI",
+			// Nothing is redeemed.
+			name: "another tenant's redirect URI",
 			callback: func(state string) *Callback {
-				return &Callback{ConnectionID: connB, State: state, Code: "code"}
+				return &Callback{TenantID: otherTenantID, State: state, Code: "code"}
+			},
+			setupMocks: func(m *mocks, state string) {
+				m.storage.EXPECT().GetConnection(gomock.Any(), connA).Return(draft(), nil)
 			},
 			expectedErr: ErrUnknownState,
 		},
 		{
-			name: "no connection",
+			name: "no tenant",
 			callback: func(state string) *Callback {
 				return &Callback{State: state, Code: "code"}
+			},
+			setupMocks: func(m *mocks, state string) {
+				m.storage.EXPECT().GetConnection(gomock.Any(), connA).Return(draft(), nil)
 			},
 			expectedErr: ErrUnknownState,
 		},
@@ -181,7 +187,7 @@ func TestService_testCallback(t *testing.T) {
 			if tc.setupMocks != nil {
 				tc.setupMocks(m, state)
 			}
-			callback := &Callback{ConnectionID: connA, State: state, Code: "code"}
+			callback := &Callback{TenantID: tenantID, State: state, Code: "code"}
 			if tc.callback != nil {
 				callback = tc.callback(state)
 			}

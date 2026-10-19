@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"go.opentelemetry.io/otel/trace"
 
@@ -29,6 +30,9 @@ func (s *Service) testCallback(ctx context.Context, test *types.TestState, callb
 		s.recordError(trace.SpanFromContext(ctx), "failed to get connection", err, "connection_id", test.ConnectionID)
 
 		return nil, fmt.Errorf("failed to get connection: %w", err)
+	}
+	if !strings.EqualFold(connection.OwnerTenantID, callback.TenantID) {
+		return nil, ErrUnknownState
 	}
 
 	claims, failure := s.testClaims(ctx, test, connection, callback)
@@ -62,7 +66,7 @@ func (s *Service) testClaims(ctx context.Context, test *types.TestState, connect
 		return nil, "The client secret could not be read."
 	}
 	claims, err := s.idp.Exchange(ctx, connection, secret, &idp.AuthRequest{
-		RedirectURI:  types.RedirectURI(s.publicURL, connection.ID),
+		RedirectURI:  types.RedirectURI(s.publicURL, connection.OwnerTenantID),
 		State:        callback.State,
 		Nonce:        test.Nonce,
 		PKCEVerifier: test.PKCEVerifier,

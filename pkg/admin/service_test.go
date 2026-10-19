@@ -37,7 +37,7 @@ const (
 	connA     = "0190a0b0-0000-7000-8000-00000000000a"
 	connB     = "0190a0b0-0000-7000-8000-00000000000b"
 	publicURL = "https://sso.example"
-	redirectA = publicURL + "/callback/" + connA
+	redirectA = publicURL + "/callback/" + tenantA
 )
 
 var (

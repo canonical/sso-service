@@ -296,7 +296,7 @@ func (s *Service) StartTestLogin(ctx context.Context, tenantID, connectionID str
 
 		return "", ErrClientSecretUnreadable
 	}
-	redirectURI := types.RedirectURI(s.publicURL, connection.ID)
+	redirectURI := types.RedirectURI(s.publicURL, connection.OwnerTenantID)
 	if err := s.idp.Check(ctx, connection, secret, redirectURI); err != nil {
 		s.logger.Warnw("test sign-in pre-check failed", "connection_id", connection.ID, "error", err)
 
