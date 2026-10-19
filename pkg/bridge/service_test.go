@@ -167,8 +167,7 @@ func seal(t *testing.T, purpose string, v any) string {
 // newTicket is what StartAttempt sealed a minute ago.
 func newTicket() *types.Ticket {
 	return &types.Ticket{
-		TenantID: tenantID, ConnectionID: connA, Email: email,
-		IssuedAt: testNow.Add(-time.Minute).Unix(), ExpiresAt: testNow.Add(29 * time.Minute).Unix(),
+		TenantID: tenantID, ConnectionID: connA, Email: email, ExpiresAt: testNow.Add(29 * time.Minute).Unix(),
 	}
 }
 
@@ -701,47 +700,18 @@ func TestService_Callback_ExchangeFails(t *testing.T) {
 	}
 }
 
-// A sign-in asked to re-authenticate needs an auth_time no earlier than its
-// ticket, give or take the clock skew.
+// Re-authentication is asked of the identity provider, not proved: the answer
+// to a sign-in that asked for it is taken as any other.
 func TestService_Callback_Reauthentication(t *testing.T) {
-	issued := newTicket().Issued()
-	at := func(d time.Duration) *time.Time {
-		authTime := issued.Add(d)
-		return &authTime
-	}
+	result, err := runCallback(t, nil, func(t *testing.T, m *mocks) {
+		ticket := newTicket()
+		ticket.Reauthenticate = true
+		m.expectExchange(t, ticket, &idp.Claims{Subject: "s", Email: email})
+		m.kratos.EXPECT().ListByIdentifier(gomock.Any(), "byo-sso:"+connA+":s").Return([]kratos.Identity{*account(identityID, email, "")}, nil)
+		m.expectAccept(ReasonLinkedExisting, "s", nil)
+	})
 
-	testCases := []struct {
-		name     string
-		authTime *time.Time
-		reason   string
-	}{
-		{name: "no auth_time", reason: ReasonReauthentication},
-		{name: "before the ticket", authTime: at(-limits.ClockSkew - time.Second), reason: ReasonReauthentication},
-		{name: "within the skew", authTime: at(-30 * time.Second)},
-		{name: "after the ticket", authTime: at(30 * time.Second)},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := runCallback(t, nil, func(t *testing.T, m *mocks) {
-				ticket := newTicket()
-				ticket.Reauthenticate = true
-				m.expectExchange(t, ticket, &idp.Claims{Subject: "s", Email: email, AuthTime: tc.authTime})
-				if tc.reason != "" {
-					m.expectReject(tc.reason)
-					return
-				}
-				m.kratos.EXPECT().ListByIdentifier(gomock.Any(), "byo-sso:"+connA+":s").Return([]kratos.Identity{*account(identityID, email, "")}, nil)
-				m.expectAccept(ReasonLinkedExisting, "s", nil)
-			})
-
-			expectedRedirect := accepted
-			if tc.reason != "" {
-				expectedRedirect = rejected
-			}
-			expectOutcome(t, result, err, expectedRedirect, nil)
-		})
-	}
+	expectOutcome(t, result, err, accepted, nil)
 }
 
 // A subject Kratos already holds a link for signs in: tenant-service is not

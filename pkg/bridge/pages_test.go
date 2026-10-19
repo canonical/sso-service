@@ -35,27 +35,3 @@ func TestRenderPage(t *testing.T) {
 		t.Errorf("unexpected Content-Security-Policy %q", csp)
 	}
 }
-
-func TestTestSucceededPage(t *testing.T) {
-	testCases := []struct {
-		name             string
-		authTimeReturned bool
-		expectedWarning  bool
-	}{
-		{name: "auth_time returned", authTimeReturned: true, expectedWarning: false},
-		{name: "no auth_time", authTimeReturned: false, expectedWarning: true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			page := testSucceededPage("Acme Okta", tc.authTimeReturned)
-
-			if page.Title != "Test sign-in succeeded" || !strings.Contains(page.Message, "Acme Okta") {
-				t.Errorf("unexpected page %+v", page)
-			}
-			if warned := strings.Contains(page.Message, "auth_time"); warned != tc.expectedWarning {
-				t.Errorf("expected warning %v, got %q", tc.expectedWarning, page.Message)
-			}
-		})
-	}
-}

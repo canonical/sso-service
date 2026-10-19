@@ -24,7 +24,6 @@ func newTestState() *types.TestState {
 
 // A test sign-in carries no binding cookie: its state is the test, sealed.
 func TestService_testCallback(t *testing.T) {
-	authTime := testNow.Add(-time.Minute)
 	draft := func() *types.Connection {
 		c := newConnection()
 		c.TestedAt = nil
@@ -52,26 +51,18 @@ func TestService_testCallback(t *testing.T) {
 		{
 			name: "success",
 			setupMocks: func(m *mocks, state string) {
-				expectExchange(m, draft(), state, &idp.Claims{Subject: "s", Email: email, EmailVerified: verified(true), AuthTime: &authTime}, nil)
+				expectExchange(m, draft(), state, &idp.Claims{Subject: "s", Email: email, EmailVerified: verified(true)}, nil)
 				m.storage.EXPECT().SetTested(gomock.Any(), connA).Return(nil).Times(1)
 			},
-			expectedPage: testSucceededPage("Acme Okta", true),
-		},
-		{
-			name: "success without auth_time",
-			setupMocks: func(m *mocks, state string) {
-				expectExchange(m, draft(), state, &idp.Claims{Subject: "s", Email: email}, nil)
-				m.storage.EXPECT().SetTested(gomock.Any(), connA).Return(nil).Times(1)
-			},
-			expectedPage: testSucceededPage("Acme Okta", false),
+			expectedPage: testSucceededPage("Acme Okta"),
 		},
 		{
 			name: "already tested",
 			setupMocks: func(m *mocks, state string) {
-				expectExchange(m, newConnection(), state, &idp.Claims{Subject: "s", Email: email, AuthTime: &authTime}, nil)
+				expectExchange(m, newConnection(), state, &idp.Claims{Subject: "s", Email: email}, nil)
 				m.storage.EXPECT().SetTested(gomock.Any(), connA).Return(nil).Times(1)
 			},
-			expectedPage: testSucceededPage("Acme Okta", true),
+			expectedPage: testSucceededPage("Acme Okta"),
 		},
 		{
 			name: "no email",

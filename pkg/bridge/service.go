@@ -286,11 +286,6 @@ func (s *Service) Callback(ctx context.Context, callback *Callback) (*Result, er
 		return s.reject(ctx, f, exchangeReason(err), "exchange failed")
 	}
 
-	if ticket.Reauthenticate {
-		if claims.AuthTime == nil || claims.AuthTime.Before(ticket.Issued().Add(-limits.ClockSkew)) {
-			return s.reject(ctx, f, ReasonReauthentication, "auth_time missing or before the ticket")
-		}
-	}
 	if !strings.EqualFold(claims.Email, ticket.Email) {
 		return s.reject(ctx, f, ReasonAddressMismatch, "id_token email differs from the entered address")
 	}

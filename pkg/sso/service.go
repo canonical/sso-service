@@ -112,7 +112,6 @@ func (s *Service) StartAttempt(ctx context.Context, tenantID, email, connectionI
 		ConnectionID:   connection.ID,
 		Email:          email,
 		Reauthenticate: reauthenticate,
-		IssuedAt:       now.Unix(),
 		ExpiresAt:      now.Add(limits.AttemptTTL).Unix(),
 	})
 	if err != nil {
