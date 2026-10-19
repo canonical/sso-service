@@ -16,10 +16,11 @@ const ProviderID = "byo-sso"
 
 const CallbackPath = "/callback"
 
-// RedirectURI is one per connection, so an identity provider's answer can
-// only be taken for the connection it was asked through.
-func RedirectURI(publicURL, connectionID string) string {
-	return strings.TrimRight(publicURL, "/") + CallbackPath + "/" + connectionID
+// RedirectURI is one per tenant, the same for all its connections, so an
+// identity provider's answer can only be taken for the tenant whose
+// connection it was asked through.
+func RedirectURI(publicURL, tenantID string) string {
+	return strings.TrimRight(publicURL, "/") + CallbackPath + "/" + tenantID
 }
 
 // Connection is a tenant's registration of its OIDC identity provider.
