@@ -19,7 +19,7 @@ type Monitor struct {
 	callbackOutcomes           *prometheus.CounterVec
 	firstSignIns               *prometheus.CounterVec
 	attemptsCompleted          *prometheus.CounterVec
-	completeAttemptRefused     *prometheus.CounterVec
+	verifyAttemptRefused       *prometheus.CounterVec
 	tenantServiceWriteFailures *prometheus.CounterVec
 
 	logger logging.LoggerInterface
@@ -79,12 +79,12 @@ func (m *Monitor) IncrementAttemptsCompleted() error {
 	return nil
 }
 
-func (m *Monitor) IncrementCompleteAttemptRefused() error {
-	if m.completeAttemptRefused == nil {
+func (m *Monitor) IncrementVerifyAttemptRefused() error {
+	if m.verifyAttemptRefused == nil {
 		return fmt.Errorf("metric not instantiated")
 	}
 
-	m.completeAttemptRefused.With(nil).Inc()
+	m.verifyAttemptRefused.With(nil).Inc()
 
 	return nil
 }
@@ -168,16 +168,16 @@ func (m *Monitor) registerCounters() {
 	m.attemptsCompleted = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name:        "sso_attempts_completed_total",
-			Help:        "CompleteAttempt calls that confirmed a sign-in attempt.",
+			Help:        "VerifyAttempt calls that confirmed a sign-in attempt.",
 			ConstLabels: labels,
 		},
 		[]string{},
 	)
 
-	m.completeAttemptRefused = prometheus.NewCounterVec(
+	m.verifyAttemptRefused = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name:        "sso_complete_attempt_refused_total",
-			Help:        "CompleteAttempt calls refused as NOT_APPLICABLE.",
+			Help:        "VerifyAttempt calls refused as NOT_APPLICABLE.",
 			ConstLabels: labels,
 		},
 		[]string{},
@@ -197,7 +197,7 @@ func (m *Monitor) registerCounters() {
 		m.callbackOutcomes,
 		m.firstSignIns,
 		m.attemptsCompleted,
-		m.completeAttemptRefused,
+		m.verifyAttemptRefused,
 		m.tenantServiceWriteFailures,
 	)
 
