@@ -64,9 +64,9 @@ The system SHALL return a connection of the tenant in the path on `GetConnection
 - `client_id`
 - `status` (`CONNECTION_STATUS_DRAFT` or `CONNECTION_STATUS_TESTED`)
 - `created_by`
-- `create_time`
-- `update_time`
-- `test_time` (empty until tested)
+- `created_at`
+- `updated_at`
+- `tested_at` (empty until tested)
 - `redirect_uri`, the URI to register at the identity provider: `<PUBLIC_URL>/callback/<connection id>`
 
 The system SHALL never return the client secret.
@@ -91,7 +91,7 @@ These limits are the limits that `CreateConnection` has.
 
 Over HTTP the request body is the fields to change, `{"label": …, "client_secret": …}`. The fields that are present make the mask. Thus a body with only `label` changes only the label. The system refuses, with HTTP 400, a body with no field and a body with a field that is not one of these 2 fields.
 
-The update SHALL set `update_time` and keep the status. A tested connection stays tested when its secret changes.
+The update SHALL set `updated_at` and keep the status. A tested connection stays tested when its secret changes.
 
 #### Scenario: A new secret keeps the status
 - **WHEN** a tenant admin replaces the client secret of a tested connection

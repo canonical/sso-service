@@ -13,7 +13,7 @@ Key decisions:
 
 - **A redirect URI per connection.** The service takes an answer only at the path of the connection that the sign-in started through. Thus a person who controls one connection's identity provider cannot make the service handle its answer as another connection's answer. For that reason we turned down one shared `/callback`.
 - **A browser-binding cookie instead of a stored attempt.** The service sets a sealed cookie at `/login`. The callback takes the nonce, the PKCE verifier and the login challenge from that cookie, and never from the URL. An answer that a person opens in another browser does nothing.
-- **A receipt cookie for the browser that signed in.** The login UI must know that the sign-in that a ticket started is complete. The login UI must also know that the browser that it talks to completed that sign-in. Thus the callback sets a cookie, and the login UI passes that cookie on to `CompleteAttempt`. `sign-in-attempts` says why the service keeps the proof in the browser and not on a server. The cookie holds nothing about the user.
+- **A receipt cookie for the browser that signed in.** The login UI must know that the sign-in that a ticket started is complete. The login UI must also know that the browser that it talks to completed that sign-in. Thus the callback sets a cookie, and the login UI passes that cookie on to `VerifyAttempt`. `sign-in-attempts` says why the service keeps the proof in the browser and not on a server. The cookie holds nothing about the user.
 - **Kratos writes every link.** For a subject with no link, this service only decides if the sign-in can continue. Then Kratos registers a new account, or links the subject to the existing account after the user signs in to that account another way. We turned down a design in which this service writes the link. In that design, the service must prove on its own that the user owns the account.
 - **This service does not check a subject that already has a link against the tenant.** The login UI does those checks. For every session, it checks membership and the tenant's policy before it accepts an app's login.
 - **The user never reads text that an identity provider controls.** Every refusal has a fixed message.
@@ -87,7 +87,7 @@ The system SHALL set the receipt cookie for every accepted sign-in. That include
 
 The system SHALL NOT set the receipt cookie for a refused sign-in or for a test sign-in. The value is a nonce and an authentication tag. A person cannot read anything about the user in the value, and cannot recover anything about the user from the value.
 
-The system never reads the receipt cookie and never clears it. The login UI reads the cookie by its name and sends its value in `CompleteAttempt` (see `sign-in-attempts`). The login UI clears the cookie when it is done with the attempt. If the login UI does not clear the cookie, the cookie expires with the ticket.
+The system never reads the receipt cookie and never clears it. The login UI reads the cookie by its name and sends its value in `VerifyAttempt` (see `sign-in-attempts`). The login UI clears the cookie when it is done with the attempt. If the login UI does not clear the cookie, the cookie expires with the ticket.
 
 The deployment must serve these pages and the login UI on the same host. As a result, the browser sends the login UI a cookie that this service set. Browsers do not keep cookies apart by port, and the cookie's path is `/`. The same requirement already applies to Kratos and the login UI.
 
@@ -103,7 +103,7 @@ The deployment must serve these pages and the login UI on the same host. As a re
 #### Scenario: The login UI is on another host
 - **WHEN** the deployment serves the login UI on a host that is not the host in `PUBLIC_URL`
 - **THEN** the browser does not send the receipt to the login UI
-- **AND** every company sign-in ends with the answer `NOT_APPLICABLE` from `CompleteAttempt`
+- **AND** every company sign-in ends with the answer `NOT_APPLICABLE` from `VerifyAttempt`
 
 ### Requirement: The checks at the callback, in order
 On `GET /callback/{connection_id}` with a `state` that is not the `state` of a test (see `test-sign-in`), the system SHALL make these checks in this order. The system SHALL stop at the first check that fails. A failure that the system answers with a page leaves the login request and the cookie unchanged. Every other failure rejects hydra-sso's login request with the reason shown.

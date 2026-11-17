@@ -54,7 +54,7 @@ The system SHALL offer these commands:
 The system SHALL offer these commands:
 
 - `policy get <tenant-id>` (`GetTenantSSOPolicy`).
-- `policy set <tenant-id> --enforcement optional|required [--binding <connection-id>[:active|:inactive]]... [--auto-join]` (`PutTenantSSOPolicy`). The bindings that the caller gives replace the bindings of the tenant. A binding is active unless it ends in `:inactive`. For any other `--enforcement` or binding state, the command SHALL fail and SHALL NOT call the API.
+- `policy set <tenant-id> --enforcement optional|required [--binding <connection-id>[:active|:inactive]]... [--auto-join]` (`SetTenantSSOPolicy`). The bindings that the caller gives replace the bindings of the tenant. A binding is active unless it ends in `:inactive`. For any other `--enforcement` or binding state, the command SHALL fail and SHALL NOT call the API.
 - `domains get <tenant-id>` (`GetTenantDomains`).
 - `domains set <tenant-id> [domain...]` (`SetTenantDomains`). The domains that the caller gives replace the domains of the tenant. When the caller gives no domain, the command removes all the domains of the tenant.
 

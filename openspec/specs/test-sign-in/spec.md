@@ -85,7 +85,7 @@ A failed test changes nothing. A test involves no link, account, session or hydr
 - **AND** no connection changes
 
 ### Requirement: A connection is tested once and stays tested
-The system SHALL set `tested_at` at the first successful test of a connection. After that, the system SHALL NOT change or clear `tested_at`. The status only moves from draft to tested. Each of these events leaves `test_time` at the time of the first success:
+The system SHALL set `tested_at` at the first successful test of a connection. After that, the system SHALL NOT change or clear `tested_at`. The status only moves from draft to tested. Each of these events leaves `tested_at` at the time of the first success:
 
 - a later failed test
 - a replayed answer
@@ -96,5 +96,5 @@ The system SHALL set `tested_at` at the first successful test of a connection. A
 - **WHEN** the browser sends the answer of a successful test a second time
 - **THEN** the identity provider refuses the code, which was already used
 - **AND** the page says that the test failed, and that a code works once
-- **AND** the connection is still tested, with the `test_time` of the first success
+- **AND** the connection is still tested, with the `tested_at` of the first success
 

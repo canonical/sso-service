@@ -83,9 +83,9 @@ The system SHALL keep working as far as it does not need the system that is down
 |---|---|---|
 | one identity provider | sign-ins and tests through its connections | everything else |
 | the Tenant Service | creating and deleting connections, reading and writing policy and domains (`UNAVAILABLE`), and the first sign-in of a subject with no link (`unavailable`) | sign-ins of subjects that have a link, the `SSOSignInService` RPCs, and reading, updating and testing connections |
-| Kratos | every company sign-in at the callback (`unavailable`), and `CompleteAttempt`, `ListLinks` and `DeleteLink` (`UNAVAILABLE`) | the admin APIs and test sign-ins |
+| Kratos | every company sign-in at the callback (`unavailable`), and `VerifyAttempt`, `ListLinks` and `DeleteLink` (`UNAVAILABLE`) | the admin APIs and test sign-ins |
 | hydra-sso | `/login`, `/callback` of a sign-in and `/consent` (a page, HTTP 500) | the APIs and test sign-ins |
-| the database | everything that reads or writes a connection | `/api/v0/status`, `/api/v0/metrics` and `CompleteAttempt` |
+| the database | everything that reads or writes a connection | `/api/v0/status`, `/api/v0/metrics` and `VerifyAttempt` |
 
 #### Scenario: The tenant service is down
 - **WHEN** a user whose account already holds a link signs in while the Tenant Service is down
