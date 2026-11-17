@@ -76,10 +76,10 @@ The service talks to these systems:
 - **Rationale**: Every sign-in reads the policy at the tenant service, also the sign-ins that never use this service. Thus the policy must live at the tenant service. Only this service knows the owner and the status of a connection.
 - **Alternatives considered**: One alternative was to store the policy here. We turned it down, because an outage here breaks sign-ins that have nothing to do with this service. A second alternative was that admins write straight to the tenant service, which calls back here to check connections. We turned it down, because it makes a cycle between 2 services and a lock across both. A third alternative was versions or read-modify-write between the 2 services. We turned it down, because each write names one part and the service that stores the policy checks that part against what is stored.
 
-### Decision 6: `CompleteAttempt` only verifies
-- **Decision**: `CompleteAttempt` answers if the ticket's sign-in ended at the given account. It reads the ticket, the account's address and links, and the receipt that the browser holds (Decision 10). It writes nothing.
+### Decision 6: `VerifyAttempt` only verifies
+- **Decision**: `VerifyAttempt` answers if the ticket's sign-in ended at the given account. It reads the ticket, the account's address and links, and the receipt that the browser holds (Decision 10). It writes nothing.
 - **Rationale**: The login UI needs one fact to record which connection a session came from. A caller can retry a call with no side effects, and the call returns the same answer.
-- **Alternative considered**: The alternative was that `CompleteAttempt` also creates the membership of an invited or auto-joined user, and removes the account when the membership is refused. We turned it down. The login UI is the one that knows when a sign-in passed all the tenant's checks. The login UI asks the tenant service for the membership then.
+- **Alternative considered**: The alternative was that `VerifyAttempt` also creates the membership of an invited or auto-joined user, and removes the account when the membership is refused. We turned it down. The login UI is the one that knows when a sign-in passed all the tenant's checks. The login UI asks the tenant service for the membership then.
 - **Consequence**: A new user can pass the callback, and then the invitation expires or auto-join is switched off. In that case, the account that Kratos registered ends up with no tenant. Nothing in this service removes that account.
 
 ### Decision 7: No stored test result
@@ -107,7 +107,7 @@ The service talks to these systems:
 - **Alternatives considered**: One alternative was to check the issuer's address once at create. We turned it down, because it does not cover later resolutions or the discovered endpoints. Another alternative was to require token and key endpoints on the issuer's origin. We turned it down, because real providers host them elsewhere.
 
 ### Decision 10: A receipt in the browser shows that the sign-in was completed
-- **Decision**: When the callback accepts a sign-in, it sets a cookie that is named for the ticket. The value of the cookie is a receipt. A receipt is an AES-256-GCM authentication tag, under the key of the service, over the ticket and the subject accepted at hydra-sso. A receipt has no content. The login UI reads the cookie of the ticket that it holds and sends the cookie's value in `CompleteAttempt`. `CompleteAttempt` requires a receipt that is valid for the ticket and for the subject of one of the account's links to the ticket's connection.
+- **Decision**: When the callback accepts a sign-in, it sets a cookie that is named for the ticket. The value of the cookie is a receipt. A receipt is an AES-256-GCM authentication tag, under the key of the service, over the ticket and the subject accepted at hydra-sso. A receipt has no content. The login UI reads the cookie of the ticket that it holds and sends the cookie's value in `VerifyAttempt`. `VerifyAttempt` requires a receipt that is valid for the ticket and for the subject of one of the account's links to the ticket's connection.
 - **Rationale**: A valid ticket, the account's address and a link do not show that the ticket's sign-in ever reached the identity provider. Without a receipt, an account linked to the connections of 2 tenants can start a sign-in at one connection. The account can then sign in through the other connection and get that session confirmed for the first ticket. That is a way in to a tenant that requires its company sign-in. A user that the tenant's identity provider no longer knows can use this way in. Anyone who runs the other tenant's identity provider can also use it.
 
   A receipt exists only after the identity provider answered for this ticket, and only in the browser that the answer came through.
@@ -144,7 +144,7 @@ Links are Kratos credentials. Sign-in attempts are tickets and cookies. hydra-ss
 5. The callback opens the cookie, and reads the login request and the ticket again. It compares the connection in the path with the ticket's connection, exchanges the code, verifies the id_token and applies the address checks. It asks Kratos who holds the link. For a subject with no link, it asks Kratos who has the address. For such a subject it also asks the tenant service if the address is allowed to sign in. It accepts the hydra-sso login, clears the cookie and sets the receipt cookie.
 6. hydra-sso sends the browser to `/consent`, and `/consent` accepts with the address as id_token claims. hydra-sso returns the browser to Kratos with a code. Kratos gets an id_token with `sub`, `email` and, when the provider said it, `email_verified`.
 7. Kratos finds the credential and signs the user in, or links, or registers (Decision 3).
-8. The browser is back in the login UI with a session. The login UI calls `CompleteAttempt` with the ticket, the account and the receipt that it reads from the browser's cookie. The login UI then applies the tenant's rules. For an invited or auto-joined user, it asks the tenant service for the membership.
+8. The browser is back in the login UI with a session. The login UI calls `VerifyAttempt` with the ticket, the account and the receipt that it reads from the browser's cookie. The login UI then applies the tenant's rules. For an invited or auto-joined user, it asks the tenant service for the membership.
 
 A refusal in step 3 or 5 rejects the hydra-sso login with a fixed message. The user reads that message in the login UI.
 
@@ -154,7 +154,7 @@ A refusal in step 3 or 5 rejects the hydra-sso login with a fixed message. The u
 3. The callback opens the `state`, exchanges the code, verifies the id_token and requires an `email`. On success the callback sets `tested_at` if `tested_at` is not set, and shows the result page.
 
 ### A policy write
-1. `PutTenantSSOPolicy` opens a transaction and locks the rows of all bound connections (`FOR UPDATE`, in id order, one statement).
+1. `SetTenantSSOPolicy` opens a transaction and locks the rows of all bound connections (`FOR UPDATE`, in id order, one statement).
 2. It checks owner and status. Then it calls the tenant service's policy write inside the transaction.
 3. The tenant service locks the tenant's row, checks the policy as a whole, stores the policy and answers. The transaction ends, and the locks end with it.
 
@@ -169,7 +169,7 @@ A refusal in step 3 or 5 rejects the hydra-sso login with a fixed message. The u
 
 - **A dependency is down**: See the table in `specs/resilience/spec.md`. On the API the caller gets `UNAVAILABLE`. In the browser flow the service rejects the login request as `unavailable`. When hydra-sso itself is down, the service shows a page instead.
 - **A sign-in is abandoned** at the provider or during account linking: The service stored nothing, so nothing is left here. The ticket and the cookies expire within 30 minutes.
-- **The browser does not return the receipt**: This occurs when the cookie was removed or refused, or when the login UI is on another host. `CompleteAttempt` answers `NOT_APPLICABLE`, and the user starts again from the login UI.
+- **The browser does not return the receipt**: This occurs when the cookie was removed or refused, or when the login UI is on another host. `VerifyAttempt` answers `NOT_APPLICABLE`, and the user starts again from the login UI.
 - **The callback fails after the code was exchanged** (for example, hydra-sso does not accept): The code is spent, and the user starts again from the login UI.
 - **A delete removed the binding but not the row** (the database failed in between): The policy no longer binds the connection, and the connection still exists. A repeat of the delete finishes it, because the removal of a binding that is not there changes nothing.
 - **A policy write was stored but its answer was lost**: A repeat of the write stores the same policy.
@@ -198,7 +198,7 @@ A refusal in step 3 or 5 rejects the hydra-sso login with a fixed message. The u
 
 Nothing exists before this change, so there is no data to migrate.
 
-1. The tenant service must serve the RPCs that this service calls: `GetSignInContext` of `TenantSignInService`, and `GetTenantSSOPolicy`, `PutTenantSSOPolicy`, `SetTenantSSODomains` and `RemoveTenantSSOBinding` of `TenantSSOPolicyService`.
+1. The tenant service must serve the RPCs that this service calls: `GetSignInContext` of `TenantSignInService`, and `GetTenantSSOPolicy`, `SetTenantSSOPolicy`, `SetTenantSSODomains` and `RemoveTenantSSOBinding` of `TenantSSOPolicyService`.
 2. Create the database and run `migrate --dsn <dsn> up`.
 3. Create the service's client at the platform's Hydra (client credentials). Generate an envelope key (32 random bytes).
 4. Deploy hydra-sso with its login, consent and error URLs set to the `/login`, `/consent` and `/error` of this service. Register Kratos as a client of hydra-sso.

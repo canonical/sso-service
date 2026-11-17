@@ -48,14 +48,14 @@
 ## 7. Tenant admin and platform admin API
 
 - [x] 7.1 Add the interfaces and errors of `pkg/admin` in `interfaces.go` and `errors.go`.
-- [x] 7.2 Add the service in `pkg/admin/service.go`. It has connections (list, create, get, update, delete, delete any), `StartTestLogin`, `GetTenantSSOPolicy`, and `PutTenantSSOPolicy` under the locks on the connection rows. It also has `GetTenantDomains`, `SetTenantDomains` and the admin-action logs.
+- [x] 7.2 Add the service in `pkg/admin/service.go`. It has connections (list, create, get, update, delete, delete any), `StartTestLogin`, `GetTenantSSOPolicy`, and `SetTenantSSOPolicy` under the locks on the connection rows. It also has `GetTenantDomains`, `SetTenantDomains` and the admin-action logs.
 - [x] 7.3 Add the handler of `SSOTenantAdminService` and `SSOPlatformAdminService` in `pkg/admin/handlers.go` and `converters.go`. It has request validation, the update mask, and the mapping of errors to codes and reasons.
 - [x] 7.4 Add tests in `pkg/admin/service_test.go`, `handlers_test.go` and `converters_test.go`.
 
 ## 8. Sign-in API
 
 - [x] 8.1 Add the interfaces and errors of `pkg/sso` in `interfaces.go` and `errors.go`.
-- [x] 8.2 Add the service in `pkg/sso/service.go`: `ListOptions`, `StartAttempt`, `CompleteAttempt`, `ListLinks`, `DeleteLink`.
+- [x] 8.2 Add the service in `pkg/sso/service.go`: `ListOptions`, `StartAttempt`, `VerifyAttempt`, `ListLinks`, `DeleteLink`.
 - [x] 8.3 Add the handler of `SSOSignInService` in `pkg/sso/handlers.go` and `converters.go`.
 - [x] 8.4 Add tests in `pkg/sso/service_test.go` and `handlers_test.go`.
 

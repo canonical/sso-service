@@ -353,14 +353,14 @@ func (s *Service) GetTenantSSOPolicy(ctx context.Context, tenantID string) (*v0t
 	return policy, nil
 }
 
-// PutTenantSSOPolicy writes the tenant's bindings, enforcement and auto-join. A
+// SetTenantSSOPolicy writes the tenant's bindings, enforcement and auto-join. A
 // binding may name only a connection the tenant owns, and an active one only
 // a tested connection; tenant-service checks everything else.
 //
 // The connections it binds are locked until the write to tenant-service is
 // done, so the policy never names a connection that is gone.
-func (s *Service) PutTenantSSOPolicy(ctx context.Context, tenantID string, enforcement v0tenant.Enforcement, autoJoin bool, bindings []*v0tenant.SSOBinding) (*v0tenant.TenantSSOPolicy, error) {
-	ctx, span := s.tracer.Start(ctx, "admin.Service.PutTenantSSOPolicy")
+func (s *Service) SetTenantSSOPolicy(ctx context.Context, tenantID string, enforcement v0tenant.Enforcement, autoJoin bool, bindings []*v0tenant.SSOBinding) (*v0tenant.TenantSSOPolicy, error) {
+	ctx, span := s.tracer.Start(ctx, "admin.Service.SetTenantSSOPolicy")
 	defer span.End()
 
 	actor, _ := authentication.GetUserID(ctx)
@@ -392,14 +392,14 @@ func (s *Service) PutTenantSSOPolicy(ctx context.Context, tenantID string, enfor
 			}
 		}
 
-		written, err = s.tenants.PutTenantSSOPolicy(ctx, &v0tenant.PutTenantSSOPolicyRequest{
+		written, err = s.tenants.SetTenantSSOPolicy(ctx, &v0tenant.SetTenantSSOPolicyRequest{
 			TenantId:    tenantID,
 			Enforcement: enforcement,
 			AutoJoin:    autoJoin,
 			Bindings:    bindings,
 		})
 		if err != nil {
-			return s.tenantServiceWriteError(span, "PutTenantSSOPolicy", err)
+			return s.tenantServiceWriteError(span, "SetTenantSSOPolicy", err)
 		}
 
 		return nil
@@ -408,7 +408,7 @@ func (s *Service) PutTenantSSOPolicy(ctx context.Context, tenantID string, enfor
 		return nil, err
 	}
 
-	s.logger.Security().AdminAction(actor, "put_tenant_sso_policy", "admin.Service.PutTenantSSOPolicy", tenantID)
+	s.logger.Security().AdminAction(actor, "put_tenant_sso_policy", "admin.Service.SetTenantSSOPolicy", tenantID)
 
 	return written, nil
 }

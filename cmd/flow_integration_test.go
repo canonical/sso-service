@@ -326,8 +326,8 @@ func (b *browser) receipt(p *plane, ticket string) string {
 
 // complete is the login UI's question when b comes back with a session of
 // identity: did the sign-in ticket started end at that account, in b.
-func (p *plane) complete(b *browser, ticket, identity string) (*v0sso.CompleteAttemptResponse, error) {
-	return p.user.CompleteAttempt(as("login-ui"), &v0sso.CompleteAttemptRequest{Ticket: ticket, IdentityId: identity, Receipt: b.receipt(p, ticket)})
+func (p *plane) complete(b *browser, ticket, identity string) (*v0sso.VerifyAttemptResponse, error) {
+	return p.user.VerifyAttempt(as("login-ui"), &v0sso.VerifyAttemptRequest{Ticket: ticket, IdentityId: identity, Receipt: b.receipt(p, ticket)})
 }
 
 func (p *plane) putIdPUser(t *testing.T, login string, u mockidp.User) {
@@ -455,9 +455,9 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 	}
 
 	// A draft cannot be active, nor offered.
-	required := &v0sso.PutTenantSSOPolicyRequest{TenantId: acme, Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED,
+	required := &v0sso.SetTenantSSOPolicyRequest{TenantId: acme, Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED,
 		Bindings: []*v0tenant.SSOBinding{{ConnectionId: conn.Id, Active: true}}}
-	_, err = p.admin.PutTenantSSOPolicy(as("owner"), required)
+	_, err = p.admin.SetTenantSSOPolicy(as("owner"), required)
 	expectReason(t, err, apierrors.ConnectionNotTested)
 	if _, err := p.user.StartAttempt(as("login-ui"), &v0sso.StartAttemptRequest{TenantId: acme, Email: "a@test.example", ConnectionId: conn.Id}); apierrors.Reason(err) != apierrors.NotApplicable {
 		t.Fatalf("a draft is not applicable: %v", err)
@@ -478,7 +478,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		t.Fatalf("test page %d", page.StatusCode)
 	}
 	got, err := p.admin.GetConnection(as("owner"), &v0sso.GetConnectionRequest{TenantId: acme, ConnectionId: conn.Id})
-	if err != nil || got.Connection.Status != v0sso.ConnectionStatus_CONNECTION_STATUS_TESTED || got.Connection.TestTime == "" {
+	if err != nil || got.Connection.Status != v0sso.ConnectionStatus_CONNECTION_STATUS_TESTED || got.Connection.TestedAt == "" {
 		t.Fatalf("%v %v", got, err)
 	}
 	// The answer again: its code is spent, the page says so, and the
@@ -487,12 +487,12 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		t.Fatalf("test page %d", page.StatusCode)
 	}
 	again, err := p.admin.GetConnection(as("owner"), &v0sso.GetConnectionRequest{TenantId: acme, ConnectionId: conn.Id})
-	if err != nil || again.Connection.Status != v0sso.ConnectionStatus_CONNECTION_STATUS_TESTED || again.Connection.TestTime != got.Connection.TestTime {
+	if err != nil || again.Connection.Status != v0sso.ConnectionStatus_CONNECTION_STATUS_TESTED || again.Connection.TestedAt != got.Connection.TestedAt {
 		t.Fatalf("%v %v", again, err)
 	}
 
 	// The tenant writes its policy; the domains a platform admin set are kept.
-	written, err := p.admin.PutTenantSSOPolicy(as("owner"), required)
+	written, err := p.admin.SetTenantSSOPolicy(as("owner"), required)
 	if err != nil || written.Policy.Enforcement != v0tenant.Enforcement_ENFORCEMENT_REQUIRED || written.Policy.AutoJoin ||
 		!slices.Equal(bindingsOf(written.Policy), []string{conn.Id + " active"}) || !slices.Equal(written.Policy.Domains, []string{"test.example"}) {
 		t.Fatalf("%v %v", written, err)
@@ -640,7 +640,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 
 		t.Run("another tenant's sign-in", func(t *testing.T) {
 			// The other tenant binds its connection and has a member of its own.
-			if _, err := p.admin.PutTenantSSOPolicy(as("owner"), &v0sso.PutTenantSSOPolicyRequest{TenantId: other, Enforcement: v0tenant.Enforcement_ENFORCEMENT_OPTIONAL,
+			if _, err := p.admin.SetTenantSSOPolicy(as("owner"), &v0sso.SetTenantSSOPolicyRequest{TenantId: other, Enforcement: v0tenant.Enforcement_ENFORCEMENT_OPTIONAL,
 				Bindings: []*v0tenant.SSOBinding{{ConnectionId: theirs.Id, Active: true}}}); err != nil {
 				t.Fatal(err)
 			}
@@ -683,7 +683,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 				t.Fatalf("still a draft: %v", got)
 			}
 			// Nor did it test the other tenant's connection.
-			if theirsNow, _ := p.admin.GetConnection(as("owner"), &v0sso.GetConnectionRequest{TenantId: other, ConnectionId: theirs.Id}); theirsNow.GetConnection().GetTestTime() != theirs.TestTime {
+			if theirsNow, _ := p.admin.GetConnection(as("owner"), &v0sso.GetConnectionRequest{TenantId: other, ConnectionId: theirs.Id}); theirsNow.GetConnection().GetTestedAt() != theirs.TestedAt {
 				t.Fatalf("the other connection's test changed: %v", theirsNow)
 			}
 
@@ -781,9 +781,9 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		if _, err := p.platform.SetTenantDomains(as("platform-admin"), &v0sso.SetTenantDomainsRequest{TenantId: hooli, Domains: []string{"hooli.example"}}); err != nil {
 			t.Fatal(err)
 		}
-		autoJoin := &v0sso.PutTenantSSOPolicyRequest{TenantId: hooli, Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED,
+		autoJoin := &v0sso.SetTenantSSOPolicyRequest{TenantId: hooli, Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED,
 			AutoJoin: true, Bindings: []*v0tenant.SSOBinding{{ConnectionId: hc.Id, Active: true}}}
-		if _, err := p.admin.PutTenantSSOPolicy(as("owner"), autoJoin); err != nil {
+		if _, err := p.admin.SetTenantSSOPolicy(as("owner"), autoJoin); err != nil {
 			t.Fatal(err)
 		}
 
@@ -802,7 +802,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		// Auto-join turned off after the IdP: the attempt still ended at his
 		// account, and what becomes of the membership is not decided here.
 		autoJoin.AutoJoin = false
-		if _, err := p.admin.PutTenantSSOPolicy(as("owner"), autoJoin); err != nil {
+		if _, err := p.admin.SetTenantSSOPolicy(as("owner"), autoJoin); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := p.complete(b, start.Ticket, hank); err != nil {
@@ -860,7 +860,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		answered(t, set.Policy)
 
 		t.Run("bindings keep the domains", func(t *testing.T) {
-			bound, err := p.admin.PutTenantSSOPolicy(as("owner"), &v0sso.PutTenantSSOPolicyRequest{TenantId: globex, Enforcement: required, AutoJoin: true,
+			bound, err := p.admin.SetTenantSSOPolicy(as("owner"), &v0sso.SetTenantSSOPolicyRequest{TenantId: globex, Enforcement: required, AutoJoin: true,
 				Bindings: []*v0tenant.SSOBinding{{ConnectionId: first.Id, Active: true}, {ConnectionId: second.Id}, {ConnectionId: spare.Id, Active: true}}})
 			if err != nil {
 				t.Fatal(err)
@@ -885,10 +885,10 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 			// wrote.
 			_, err := p.platform.SetTenantDomains(as("platform-admin"), &v0sso.SetTenantDomainsRequest{TenantId: globex})
 			expectReason(t, err, apierrors.AutoJoinNeedsRequiredAndDomains)
-			_, err = p.admin.PutTenantSSOPolicy(as("owner"), &v0sso.PutTenantSSOPolicyRequest{TenantId: globex, Enforcement: required,
+			_, err = p.admin.SetTenantSSOPolicy(as("owner"), &v0sso.SetTenantSSOPolicyRequest{TenantId: globex, Enforcement: required,
 				Bindings: []*v0tenant.SSOBinding{{ConnectionId: first.Id}}})
 			expectReason(t, err, apierrors.RequiredNeedsActiveBinding)
-			_, err = p.admin.PutTenantSSOPolicy(as("owner"), &v0sso.PutTenantSSOPolicyRequest{TenantId: globex, Enforcement: optional, AutoJoin: true,
+			_, err = p.admin.SetTenantSSOPolicy(as("owner"), &v0sso.SetTenantSSOPolicyRequest{TenantId: globex, Enforcement: optional, AutoJoin: true,
 				Bindings: []*v0tenant.SSOBinding{{ConnectionId: first.Id, Active: true}}})
 			expectReason(t, err, apierrors.AutoJoinNeedsRequiredAndDomains)
 			holds(t, required, true, domains, first.Id+" active", second.Id+" inactive", spare.Id+" active")
@@ -951,7 +951,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		}
 		id := orphan.Connection.Id
 		// Another tenant can neither bind nor delete it.
-		_, err = p.admin.PutTenantSSOPolicy(as("owner"), &v0sso.PutTenantSSOPolicyRequest{TenantId: other, Enforcement: v0tenant.Enforcement_ENFORCEMENT_OPTIONAL,
+		_, err = p.admin.SetTenantSSOPolicy(as("owner"), &v0sso.SetTenantSSOPolicyRequest{TenantId: other, Enforcement: v0tenant.Enforcement_ENFORCEMENT_OPTIONAL,
 			Bindings: []*v0tenant.SSOBinding{{ConnectionId: id}}})
 		expectReason(t, err, apierrors.ConnectionNotFound)
 		_, err = p.admin.DeleteConnection(as("owner"), &v0sso.DeleteConnectionRequest{TenantId: other, ConnectionId: id})

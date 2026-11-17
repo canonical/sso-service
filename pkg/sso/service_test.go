@@ -271,7 +271,7 @@ func TestService_StartAttempt(t *testing.T) {
 	}
 }
 
-func TestService_CompleteAttempt(t *testing.T) {
+func TestService_VerifyAttempt(t *testing.T) {
 	kratosErr := errors.New("connection refused")
 	valid := types.Ticket{
 		TenantID:     tenantID,
@@ -310,7 +310,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 		opens(m, valid)
 		m.kratos.EXPECT().GetIdentity(gomock.Any(), identityID, kratos.OIDCCredential).
 			Return(account(email, link(connA, "s"), nil), nil)
-		m.monitor.EXPECT().IncrementCompleteAttemptRefused().Return(nil)
+		m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 	}
 
 	testCases := []struct {
@@ -345,7 +345,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 			repeat:  true,
 			receipt: held,
 			setupMocks: func(m *serviceMocks) {
-				m.tracer.EXPECT().Start(gomock.Any(), "sso.Service.CompleteAttempt").
+				m.tracer.EXPECT().Start(gomock.Any(), "sso.Service.VerifyAttempt").
 					Return(context.Background(), trace.SpanFromContext(context.Background()))
 				opens(m, valid).Times(2)
 				m.kratos.EXPECT().GetIdentity(gomock.Any(), identityID, kratos.OIDCCredential).
@@ -358,7 +358,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 			receipt: held,
 			setupMocks: func(m *serviceMocks) {
 				m.envelope.EXPECT().Open(types.PurposeTicket, "sealed", gomock.Any()).Return(secrets.ErrUnsealable)
-				m.monitor.EXPECT().IncrementCompleteAttemptRefused().Return(nil)
+				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
 			expectedErr: ErrAttemptNotCompleted,
 		},
@@ -367,7 +367,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 			receipt: held,
 			setupMocks: func(m *serviceMocks) {
 				opens(m, expired)
-				m.monitor.EXPECT().IncrementCompleteAttemptRefused().Return(nil)
+				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
 			expectedErr: ErrAttemptNotCompleted,
 		},
@@ -377,7 +377,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 			setupMocks: func(m *serviceMocks) {
 				opens(m, valid)
 				m.kratos.EXPECT().GetIdentity(gomock.Any(), identityID, kratos.OIDCCredential).Return(nil, kratos.ErrNotFound)
-				m.monitor.EXPECT().IncrementCompleteAttemptRefused().Return(nil)
+				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
 			expectedErr: ErrAttemptNotCompleted,
 		},
@@ -388,7 +388,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 				opens(m, valid)
 				m.kratos.EXPECT().GetIdentity(gomock.Any(), identityID, kratos.OIDCCredential).
 					Return(account("bob@test.example", link(connA, "s"), nil), nil)
-				m.monitor.EXPECT().IncrementCompleteAttemptRefused().Return(nil)
+				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
 			expectedErr: ErrAttemptNotCompleted,
 		},
@@ -399,7 +399,7 @@ func TestService_CompleteAttempt(t *testing.T) {
 				opens(m, valid)
 				m.kratos.EXPECT().GetIdentity(gomock.Any(), identityID, kratos.OIDCCredential).
 					Return(account(email, link(connB, "s"), nil), nil)
-				m.monitor.EXPECT().IncrementCompleteAttemptRefused().Return(nil)
+				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
 			expectedErr: ErrAttemptNotCompleted,
 		},
@@ -433,13 +433,13 @@ func TestService_CompleteAttempt(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			s, mocks := newTestService(t, "sso.Service.CompleteAttempt")
+			s, mocks := newTestService(t, "sso.Service.VerifyAttempt")
 			mocks.envelope.EXPECT().ValidReceipt(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(envelope.ValidReceipt).AnyTimes()
 			tc.setupMocks(mocks)
 
-			ticket, err := s.CompleteAttempt(context.Background(), "sealed", identityID, tc.receipt)
+			ticket, err := s.VerifyAttempt(context.Background(), "sealed", identityID, tc.receipt)
 			if tc.repeat {
-				ticket, err = s.CompleteAttempt(context.Background(), "sealed", identityID, tc.receipt)
+				ticket, err = s.VerifyAttempt(context.Background(), "sealed", identityID, tc.receipt)
 			}
 
 			if !errors.Is(err, tc.expectedErr) {

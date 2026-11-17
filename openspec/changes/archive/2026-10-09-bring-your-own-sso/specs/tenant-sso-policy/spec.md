@@ -35,7 +35,7 @@ The system SHALL return the policy on `GetTenantSSOPolicy` (`GET /api/v0/sso/ten
 - **THEN** the service returns it with `ENFORCEMENT_OFF`, auto-join off, no domains and no bindings
 
 ### Requirement: Write bindings, enforcement and auto-join
-The system SHALL, on `PutTenantSSOPolicy` (`PUT /api/v0/sso/tenants/{tenant_id}/policy`), write these parts of the tenant's policy:
+The system SHALL, on `SetTenantSSOPolicy` (`PUT /api/v0/sso/tenants/{tenant_id}/policy`), write these parts of the tenant's policy:
 
 - `bindings`, the whole set.
 - `enforcement`, which is `ENFORCEMENT_OPTIONAL` or `ENFORCEMENT_REQUIRED`. Any other value gives `INVALID_ARGUMENT`.

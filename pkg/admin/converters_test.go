@@ -51,11 +51,11 @@ func TestConnectionToProto(t *testing.T) {
 				pb.ClientId != "client" || pb.CreatedBy != adminID {
 				t.Errorf("unexpected connection: %v", pb)
 			}
-			if pb.CreateTime != "2026-09-01T08:00:00Z" || pb.UpdateTime != "2026-09-01T09:00:00Z" {
-				t.Errorf("expected UTC times, got %s and %s", pb.CreateTime, pb.UpdateTime)
+			if pb.CreatedAt != "2026-09-01T08:00:00Z" || pb.UpdatedAt != "2026-09-01T09:00:00Z" {
+				t.Errorf("expected UTC times, got %s and %s", pb.CreatedAt, pb.UpdatedAt)
 			}
-			if pb.Status != tt.wantStatus || pb.TestTime != tt.wantTestTime {
-				t.Errorf("expected status %v and test time %q, got %v and %q", tt.wantStatus, tt.wantTestTime, pb.Status, pb.TestTime)
+			if pb.Status != tt.wantStatus || pb.TestedAt != tt.wantTestTime {
+				t.Errorf("expected status %v and test time %q, got %v and %q", tt.wantStatus, tt.wantTestTime, pb.Status, pb.TestedAt)
 			}
 			if pb.RedirectUri != redirectA {
 				t.Errorf("expected redirect URI %s, got %s", redirectA, pb.RedirectUri)

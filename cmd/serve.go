@@ -112,7 +112,7 @@ func validatePublicURL(raw string, dev bool) error {
 var signInMethods = []string{
 	v0sso.SSOSignInService_ListOptions_FullMethodName,
 	v0sso.SSOSignInService_StartAttempt_FullMethodName,
-	v0sso.SSOSignInService_CompleteAttempt_FullMethodName,
+	v0sso.SSOSignInService_VerifyAttempt_FullMethodName,
 	v0sso.SSOSignInService_ListLinks_FullMethodName,
 	v0sso.SSOSignInService_DeleteLink_FullMethodName,
 }

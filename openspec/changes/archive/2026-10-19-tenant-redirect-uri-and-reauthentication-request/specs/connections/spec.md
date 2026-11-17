@@ -10,9 +10,9 @@ The system SHALL return a connection of the tenant in the path on `GetConnection
 - `client_id`
 - `status` (`CONNECTION_STATUS_DRAFT` or `CONNECTION_STATUS_TESTED`)
 - `created_by`
-- `create_time`
-- `update_time`
-- `test_time` (empty until tested)
+- `created_at`
+- `updated_at`
+- `tested_at` (empty until tested)
 - `redirect_uri`, the URI to register at the identity provider: `<PUBLIC_URL>/callback/<tenant id>`, the same for all the connections of the tenant
 
 The system SHALL never return the client secret.

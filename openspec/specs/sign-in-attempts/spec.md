@@ -14,7 +14,7 @@ Key decisions:
 
 - **A sign-in attempt is a sealed ticket, not a row.** The service writes nothing when a sign-in starts. There is nothing to clean up, and the database holds no user data. For those reasons we turned down a table of attempts. The cost is that no one can withdraw a ticket before it expires, and a ticket is not single use. A replay of a ticket only starts another sign-in, and that sign-in still needs the user at the identity provider.
 - **The browser that completed a sign-in holds the proof of it.** The callback gives that browser a receipt in a cookie (see `company-sign-in`). The login UI passes the receipt on with the ticket. We turned down a record on a server, in a table of this service or in the rows that hydra-sso keeps. Such a record says that the identity provider answered for the ticket, but it does not say in which browser. With such a record, a person who starts an attempt can make another user's browser finish the attempt. Then that person can present the ticket with a session made another way.
-- **`CompleteAttempt` only verifies.** We turned down a design in which it also creates the user's membership, and removes an account whose membership was refused. In that design, a confirmation writes 2 other services' data, and a caller cannot repeat it safely. The login UI asks the tenant service for the membership.
+- **`VerifyAttempt` only verifies.** We turned down a design in which it also creates the user's membership, and removes an account whose membership was refused. In that design, a confirmation writes 2 other services' data, and a caller cannot repeat it safely. The login UI asks the tenant service for the membership.
 - **This service does not decide which connections apply to a user.** The login UI passes on the connection ids that the tenant service gave it.
 
 Non-goals:
@@ -44,7 +44,7 @@ A ticket holds these items:
 - the time when the system issued the ticket
 - an expiry 30 minutes later
 
-The system seals the ticket with the service's keys (see `secrets`). Callers treat the ticket as opaque, and no one else can read it or change it. The login UI gives the ticket to Kratos as the `login_hint` of the `byo-sso` sign-in. The ticket reaches this service as the `login_hint` of hydra-sso's login request, and again in `CompleteAttempt`.
+The system seals the ticket with the service's keys (see `secrets`). Callers treat the ticket as opaque, and no one else can read it or change it. The login UI gives the ticket to Kratos as the `login_hint` of the `byo-sso` sign-in. The ticket reaches this service as the `login_hint` of hydra-sso's login request, and again in `VerifyAttempt`.
 
 #### Scenario: A draft connection
 - **WHEN** the login UI starts an attempt for a connection that is a draft or does not exist
@@ -58,10 +58,10 @@ The system seals the ticket with the service's keys (see `secrets`). Callers tre
 #### Scenario: An altered or expired ticket
 - **WHEN** the system gets a ticket with one character changed, or a ticket issued more than 30 minutes ago
 - **THEN** `/login` and `/callback` refuse the sign-in as expired
-- **AND** `CompleteAttempt` answers `NOT_APPLICABLE`
+- **AND** `VerifyAttempt` answers `NOT_APPLICABLE`
 
 ### Requirement: Confirm that an attempt ended at an account
-On `CompleteAttempt` with a ticket, an `identity_id` and a `receipt`, the system SHALL return the ticket's `connection_id` and `tenant_id` when all these conditions are true:
+On `VerifyAttempt` with a ticket, an `identity_id` and a `receipt`, the system SHALL return the ticket's `connection_id` and `tenant_id` when all these conditions are true:
 
 - the ticket opens and is not expired
 - Kratos has the account

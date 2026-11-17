@@ -18,7 +18,7 @@ This change adds a new service, the SSO service. The SSO service does these thin
 - `test-sign-in`: the test that makes a connection tested.
 - `tenant-sso-policy`: bindings, enforcement, auto-join.
 - `platform-administration`: all connections, how to read and set domains, how to delete any connection.
-- `sign-in-attempts`: options, tickets, `CompleteAttempt`.
+- `sign-in-attempts`: options, tickets, `VerifyAttempt`.
 - `company-sign-in`: the browser pages `/login`, `/callback/{connection_id}`, `/consent`, `/error`.
 - `links`: how to list and remove the links of an account.
 - `identity-provider-requests`: outbound-request guard, discovery, code exchange, id_token checks.

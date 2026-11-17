@@ -22,7 +22,7 @@ type ServiceInterface interface {
 	DeleteAnyConnection(ctx context.Context, connectionID string) error
 	StartTestLogin(ctx context.Context, tenantID, connectionID string) (string, error)
 	GetTenantSSOPolicy(ctx context.Context, tenantID string) (*v0tenant.TenantSSOPolicy, error)
-	PutTenantSSOPolicy(ctx context.Context, tenantID string, enforcement v0tenant.Enforcement, autoJoin bool, bindings []*v0tenant.SSOBinding) (*v0tenant.TenantSSOPolicy, error)
+	SetTenantSSOPolicy(ctx context.Context, tenantID string, enforcement v0tenant.Enforcement, autoJoin bool, bindings []*v0tenant.SSOBinding) (*v0tenant.TenantSSOPolicy, error)
 	GetTenantDomains(ctx context.Context, tenantID string) ([]string, error)
 	SetTenantDomains(ctx context.Context, tenantID string, domains []string) (*v0tenant.TenantSSOPolicy, error)
 }
@@ -40,7 +40,7 @@ type StorageInterface interface {
 
 type TenantsClientInterface interface {
 	GetTenantSSOPolicy(ctx context.Context, tenantID string) (*v0tenant.TenantSSOPolicy, error)
-	PutTenantSSOPolicy(ctx context.Context, req *v0tenant.PutTenantSSOPolicyRequest) (*v0tenant.TenantSSOPolicy, error)
+	SetTenantSSOPolicy(ctx context.Context, req *v0tenant.SetTenantSSOPolicyRequest) (*v0tenant.TenantSSOPolicy, error)
 	SetTenantSSODomains(ctx context.Context, tenantID string, domains []string) (*v0tenant.TenantSSOPolicy, error)
 	RemoveTenantSSOBinding(ctx context.Context, tenantID, connectionID string) error
 }

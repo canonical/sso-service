@@ -46,7 +46,7 @@ The system SHALL set the receipt cookie for every accepted sign-in. That include
 
 The system SHALL NOT set the receipt cookie for a refused sign-in or for a test sign-in. The value is a nonce and an authentication tag. A person cannot read anything about the user in the value, and cannot recover anything about the user from the value.
 
-The system never reads the receipt cookie and never clears it. The login UI reads the cookie by its name and sends its value in `CompleteAttempt` (see `sign-in-attempts`). The login UI clears the cookie when it is done with the attempt. If the login UI does not clear the cookie, the cookie expires with the ticket.
+The system never reads the receipt cookie and never clears it. The login UI reads the cookie by its name and sends its value in `VerifyAttempt` (see `sign-in-attempts`). The login UI clears the cookie when it is done with the attempt. If the login UI does not clear the cookie, the cookie expires with the ticket.
 
 The deployment must serve these pages and the login UI on the same host. As a result, the browser sends the login UI a cookie that this service set. Browsers do not keep cookies apart by port, and the cookie's path is `/`. The same requirement already applies to Kratos and the login UI.
 
@@ -62,7 +62,7 @@ The deployment must serve these pages and the login UI on the same host. As a re
 #### Scenario: The login UI is on another host
 - **WHEN** the deployment serves the login UI on a host that is not the host in `PUBLIC_URL`
 - **THEN** the browser does not send the receipt to the login UI
-- **AND** every company sign-in ends with the answer `NOT_APPLICABLE` from `CompleteAttempt`
+- **AND** every company sign-in ends with the answer `NOT_APPLICABLE` from `VerifyAttempt`
 
 ### Requirement: The checks at the callback, in order
 On `GET /callback/{tenant_id}` with a `state` that is not the `state` of a test (see `test-sign-in`), the system SHALL make these checks in this order. The system SHALL stop at the first check that fails. A failure that the system answers with a page leaves the login request and the cookie unchanged. Every other failure rejects hydra-sso's login request with the reason shown.
