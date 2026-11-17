@@ -33,7 +33,7 @@ The 2 admin services have these HTTP routes:
 | `ListConnections`, `CreateConnection` | `GET`, `POST /api/v0/sso/tenants/{tenant_id}/connections` |
 | `GetConnection`, `UpdateConnection`, `DeleteConnection` | `GET`, `PATCH`, `DELETE /api/v0/sso/tenants/{tenant_id}/connections/{connection_id}` |
 | `StartTestLogin` | `POST /api/v0/sso/tenants/{tenant_id}/connections/{connection_id}/test-logins` |
-| `GetTenantSSOPolicy`, `PutTenantSSOPolicy` | `GET`, `PUT /api/v0/sso/tenants/{tenant_id}/policy` |
+| `GetTenantSSOPolicy`, `SetTenantSSOPolicy` | `GET`, `PUT /api/v0/sso/tenants/{tenant_id}/policy` |
 | `ListAllConnections` | `GET /api/v0/sso/connections` |
 | `GetTenantDomains`, `SetTenantDomains` | `GET`, `PUT /api/v0/sso/tenants/{tenant_id}/domains` |
 | `DeleteAnyConnection` | `DELETE /api/v0/sso/connections/{connection_id}` |
@@ -75,7 +75,7 @@ The system SHALL answer a failed call with a gRPC status. A refusal with a reaso
 | `REQUIRED_NEEDS_ACTIVE_BINDING` | `FAILED_PRECONDITION` | 400 | a policy write or a delete that will leave a `REQUIRED` tenant with no active binding |
 | `AUTO_JOIN_NEEDS_REQUIRED_AND_DOMAINS` | `FAILED_PRECONDITION` | 400 | auto-join without `REQUIRED` or without domains |
 | `IDP_CHECK_FAILED` | `FAILED_PRECONDITION` | 400 | the check that starts a test sign-in failed |
-| `NOT_APPLICABLE` | `FAILED_PRECONDITION` | gRPC only | `StartAttempt` for a connection that is not tested. Also a `CompleteAttempt` that does not match |
+| `NOT_APPLICABLE` | `FAILED_PRECONDITION` | gRPC only | `StartAttempt` for a connection that is not tested. Also a `VerifyAttempt` that does not match |
 | `LAST_CREDENTIAL` | `FAILED_PRECONDITION` | gRPC only | a `DeleteLink` that will leave the account with no way in of its own |
 
 These failures have no reason:

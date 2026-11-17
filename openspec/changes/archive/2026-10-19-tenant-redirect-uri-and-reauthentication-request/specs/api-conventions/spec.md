@@ -17,7 +17,7 @@ The 2 admin services have these HTTP routes:
 | `ListConnections`, `CreateConnection` | `GET`, `POST /api/v0/sso/tenants/{tenant_id}/connections` |
 | `GetConnection`, `UpdateConnection`, `DeleteConnection` | `GET`, `PATCH`, `DELETE /api/v0/sso/tenants/{tenant_id}/connections/{connection_id}` |
 | `StartTestLogin` | `POST /api/v0/sso/tenants/{tenant_id}/connections/{connection_id}/test-logins` |
-| `GetTenantSSOPolicy`, `PutTenantSSOPolicy` | `GET`, `PUT /api/v0/sso/tenants/{tenant_id}/policy` |
+| `GetTenantSSOPolicy`, `SetTenantSSOPolicy` | `GET`, `PUT /api/v0/sso/tenants/{tenant_id}/policy` |
 | `ListAllConnections` | `GET /api/v0/sso/connections` |
 | `GetTenantDomains`, `SetTenantDomains` | `GET`, `PUT /api/v0/sso/tenants/{tenant_id}/domains` |
 | `DeleteAnyConnection` | `DELETE /api/v0/sso/connections/{connection_id}` |
