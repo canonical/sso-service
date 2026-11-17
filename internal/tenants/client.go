@@ -84,14 +84,14 @@ func (c *Client) GetTenantSSOPolicy(ctx context.Context, tenantID string) (*v0te
 	return resp.GetPolicy(), nil
 }
 
-func (c *Client) PutTenantSSOPolicy(ctx context.Context, req *v0tenant.PutTenantSSOPolicyRequest) (*v0tenant.TenantSSOPolicy, error) {
-	ctx, span := c.tracer.Start(ctx, "tenants.Client.PutTenantSSOPolicy")
+func (c *Client) SetTenantSSOPolicy(ctx context.Context, req *v0tenant.SetTenantSSOPolicyRequest) (*v0tenant.TenantSSOPolicy, error) {
+	ctx, span := c.tracer.Start(ctx, "tenants.Client.SetTenantSSOPolicy")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.policyClient.PutTenantSSOPolicy(ctx, req)
+	resp, err := c.policyClient.SetTenantSSOPolicy(ctx, req)
 	if err != nil {
 		return nil, recordError(span, err)
 	}

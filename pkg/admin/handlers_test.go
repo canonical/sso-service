@@ -496,23 +496,23 @@ func TestHandler_GetTenantSSOPolicy(t *testing.T) {
 	}
 }
 
-func TestHandler_PutTenantSSOPolicy(t *testing.T) {
+func TestHandler_SetTenantSSOPolicy(t *testing.T) {
 	required := v0tenant.Enforcement_ENFORCEMENT_REQUIRED
 	policy := &v0tenant.TenantSSOPolicy{TenantId: tenantA, Enforcement: required}
 	bindings := []*v0tenant.SSOBinding{{ConnectionId: connA, Active: true}}
-	request := func() *v0sso.PutTenantSSOPolicyRequest {
-		return &v0sso.PutTenantSSOPolicyRequest{
+	request := func() *v0sso.SetTenantSSOPolicyRequest {
+		return &v0sso.SetTenantSSOPolicyRequest{
 			TenantId: strings.ToUpper(tenantA), Enforcement: required, AutoJoin: true,
 			Bindings: []*v0tenant.SSOBinding{{ConnectionId: strings.ToUpper(connA), Active: true}},
 		}
 	}
 	puts := func(mockSvc *MockServiceInterface, written *v0tenant.TenantSSOPolicy, err error) {
-		mockSvc.EXPECT().PutTenantSSOPolicy(gomock.Any(), tenantA, required, true, bindings).Return(written, err)
+		mockSvc.EXPECT().SetTenantSSOPolicy(gomock.Any(), tenantA, required, true, bindings).Return(written, err)
 	}
 
 	tests := []struct {
 		name       string
-		request    *v0sso.PutTenantSSOPolicyRequest
+		request    *v0sso.SetTenantSSOPolicyRequest
 		setupMocks func(*MockServiceInterface)
 		wantCode   codes.Code
 		wantReason string
@@ -525,7 +525,7 @@ func TestHandler_PutTenantSSOPolicy(t *testing.T) {
 		},
 		{
 			name: "enforcement off cannot be written",
-			request: func() *v0sso.PutTenantSSOPolicyRequest {
+			request: func() *v0sso.SetTenantSSOPolicyRequest {
 				r := request()
 				r.Enforcement = v0tenant.Enforcement_ENFORCEMENT_OFF
 				return r
@@ -535,7 +535,7 @@ func TestHandler_PutTenantSSOPolicy(t *testing.T) {
 		},
 		{
 			name: "invalid connection id",
-			request: func() *v0sso.PutTenantSSOPolicyRequest {
+			request: func() *v0sso.SetTenantSSOPolicyRequest {
 				r := request()
 				r.Bindings[0].ConnectionId = "c"
 				return r
@@ -554,10 +554,10 @@ func TestHandler_PutTenantSSOPolicy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h, mockSvc := newTestHandler(t, "admin.Handler.PutTenantSSOPolicy")
+			h, mockSvc := newTestHandler(t, "admin.Handler.SetTenantSSOPolicy")
 			tt.setupMocks(mockSvc)
 
-			resp, err := h.PutTenantSSOPolicy(context.Background(), tt.request)
+			resp, err := h.SetTenantSSOPolicy(context.Background(), tt.request)
 
 			expectStatus(t, err, tt.wantCode, tt.wantReason)
 			if tt.wantCode == codes.OK && resp.Policy != policy {

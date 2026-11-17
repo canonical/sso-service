@@ -35,7 +35,7 @@ type fakeTenantService struct {
 	mu      sync.Mutex
 	signIn  *v0tenant.GetSignInContextRequest
 	get     *v0tenant.GetTenantSSOPolicyRequest
-	put     *v0tenant.PutTenantSSOPolicyRequest
+	put     *v0tenant.SetTenantSSOPolicyRequest
 	domains *v0tenant.SetTenantSSODomainsRequest
 	unbind  *v0tenant.RemoveTenantSSOBindingRequest
 	context *v0tenant.SignInContext
@@ -102,12 +102,12 @@ func (f *fakeTenantService) GetTenantSSOPolicy(ctx context.Context, r *v0tenant.
 	return &v0tenant.GetTenantSSOPolicyResponse{Policy: f.policy}, nil
 }
 
-func (f *fakeTenantService) PutTenantSSOPolicy(ctx context.Context, r *v0tenant.PutTenantSSOPolicyRequest) (*v0tenant.PutTenantSSOPolicyResponse, error) {
+func (f *fakeTenantService) SetTenantSSOPolicy(ctx context.Context, r *v0tenant.SetTenantSSOPolicyRequest) (*v0tenant.SetTenantSSOPolicyResponse, error) {
 	if err := f.seen(ctx); err != nil {
 		return nil, err
 	}
 	f.put = r
-	return &v0tenant.PutTenantSSOPolicyResponse{Policy: f.policy}, nil
+	return &v0tenant.SetTenantSSOPolicyResponse{Policy: f.policy}, nil
 }
 
 func (f *fakeTenantService) SetTenantSSODomains(ctx context.Context, r *v0tenant.SetTenantSSODomainsRequest) (*v0tenant.SetTenantSSODomainsResponse, error) {
@@ -248,15 +248,15 @@ func TestClient_GetTenantSSOPolicy(t *testing.T) {
 	})
 }
 
-func TestClient_PutTenantSSOPolicy(t *testing.T) {
-	request := &v0tenant.PutTenantSSOPolicyRequest{TenantId: "t", Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED, AutoJoin: true,
+func TestClient_SetTenantSSOPolicy(t *testing.T) {
+	request := &v0tenant.SetTenantSSOPolicyRequest{TenantId: "t", Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED, AutoJoin: true,
 		Bindings: []*v0tenant.SSOBinding{{ConnectionId: "c1", Active: true}, {ConnectionId: "c2"}}}
 
 	t.Run("success", func(t *testing.T) {
 		f := &fakeTenantService{policy: &v0tenant.TenantSSOPolicy{TenantId: "t", Enforcement: v0tenant.Enforcement_ENFORCEMENT_REQUIRED,
 			AutoJoin: true, Domains: []string{"acme.example"}, Bindings: request.GetBindings()}}
 
-		policy, err := dial(t, f, token, callTimeout).PutTenantSSOPolicy(context.Background(), request)
+		policy, err := dial(t, f, token, callTimeout).SetTenantSSOPolicy(context.Background(), request)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -271,7 +271,7 @@ func TestClient_PutTenantSSOPolicy(t *testing.T) {
 	t.Run("refused", func(t *testing.T) {
 		f := &fakeTenantService{err: refusal(t, codes.FailedPrecondition, "REQUIRED_NEEDS_ACTIVE_BINDING")}
 
-		policy, err := dial(t, f, token, callTimeout).PutTenantSSOPolicy(context.Background(), request)
+		policy, err := dial(t, f, token, callTimeout).SetTenantSSOPolicy(context.Background(), request)
 		if !errors.Is(err, ErrRequiredNeedsActiveBinding) || policy != nil {
 			t.Errorf("expected %v and no policy, got %v %v", ErrRequiredNeedsActiveBinding, err, policy)
 		}
@@ -357,8 +357,8 @@ func TestClient_Timeout(t *testing.T) {
 			_, err := c.GetTenantSSOPolicy(ctx, "t")
 			return err
 		},
-		"PutTenantSSOPolicy": func(ctx context.Context, c *Client) error {
-			_, err := c.PutTenantSSOPolicy(ctx, &v0tenant.PutTenantSSOPolicyRequest{TenantId: "t"})
+		"SetTenantSSOPolicy": func(ctx context.Context, c *Client) error {
+			_, err := c.SetTenantSSOPolicy(ctx, &v0tenant.SetTenantSSOPolicyRequest{TenantId: "t"})
 			return err
 		},
 		"SetTenantSSODomains": func(ctx context.Context, c *Client) error {

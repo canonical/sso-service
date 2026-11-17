@@ -13,7 +13,7 @@ import (
 type ServiceInterface interface {
 	ListOptions(ctx context.Context, connectionIDs []string) ([]*types.Connection, error)
 	StartAttempt(ctx context.Context, tenantID, email, connectionID string, reauthenticate bool) (string, error)
-	CompleteAttempt(ctx context.Context, ticket, identityID, receipt string) (*types.Ticket, error)
+	VerifyAttempt(ctx context.Context, ticket, identityID, receipt string) (*types.Ticket, error)
 	ListLinks(ctx context.Context, identityID string) ([]*types.Connection, error)
 	DeleteLink(ctx context.Context, identityID, connectionID string) error
 }

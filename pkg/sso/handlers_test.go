@@ -161,40 +161,40 @@ func TestHandler_StartAttempt(t *testing.T) {
 	}
 }
 
-func TestHandler_CompleteAttempt(t *testing.T) {
+func TestHandler_VerifyAttempt(t *testing.T) {
 	tests := []struct {
 		name       string
-		request    *v0sso.CompleteAttemptRequest
+		request    *v0sso.VerifyAttemptRequest
 		setupMocks func(*MockServiceInterface)
 		wantCode   codes.Code
 		wantReason string
 	}{
 		{
 			name:    "success",
-			request: &v0sso.CompleteAttemptRequest{Ticket: "sealed", IdentityId: strings.ToUpper(identityID), Receipt: "Receipt"},
+			request: &v0sso.VerifyAttemptRequest{Ticket: "sealed", IdentityId: strings.ToUpper(identityID), Receipt: "Receipt"},
 			setupMocks: func(mockSvc *MockServiceInterface) {
-				mockSvc.EXPECT().CompleteAttempt(gomock.Any(), "sealed", identityID, "Receipt").
+				mockSvc.EXPECT().VerifyAttempt(gomock.Any(), "sealed", identityID, "Receipt").
 					Return(&types.Ticket{ConnectionID: connA, TenantID: tenantID}, nil)
 			},
 			wantCode: codes.OK,
 		},
 		{
 			name:       "invalid identity id",
-			request:    &v0sso.CompleteAttemptRequest{Ticket: "sealed", IdentityId: "alice"},
+			request:    &v0sso.VerifyAttemptRequest{Ticket: "sealed", IdentityId: "alice"},
 			setupMocks: func(mockSvc *MockServiceInterface) {},
 			wantCode:   codes.InvalidArgument,
 		},
 		{
 			name:       "missing ticket",
-			request:    &v0sso.CompleteAttemptRequest{IdentityId: identityID},
+			request:    &v0sso.VerifyAttemptRequest{IdentityId: identityID},
 			setupMocks: func(mockSvc *MockServiceInterface) {},
 			wantCode:   codes.InvalidArgument,
 		},
 		{
 			name:    "attempt not completed",
-			request: &v0sso.CompleteAttemptRequest{Ticket: "sealed", IdentityId: identityID},
+			request: &v0sso.VerifyAttemptRequest{Ticket: "sealed", IdentityId: identityID},
 			setupMocks: func(mockSvc *MockServiceInterface) {
-				mockSvc.EXPECT().CompleteAttempt(gomock.Any(), "sealed", identityID, "").Return(nil, ErrAttemptNotCompleted)
+				mockSvc.EXPECT().VerifyAttempt(gomock.Any(), "sealed", identityID, "").Return(nil, ErrAttemptNotCompleted)
 			},
 			wantCode:   codes.FailedPrecondition,
 			wantReason: apierrors.NotApplicable,
@@ -203,10 +203,10 @@ func TestHandler_CompleteAttempt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h, mockSvc := newTestHandler(t, "sso.Handler.CompleteAttempt")
+			h, mockSvc := newTestHandler(t, "sso.Handler.VerifyAttempt")
 			tt.setupMocks(mockSvc)
 
-			resp, err := h.CompleteAttempt(context.Background(), tt.request)
+			resp, err := h.VerifyAttempt(context.Background(), tt.request)
 
 			if status.Code(err) != tt.wantCode || apierrors.Reason(err) != tt.wantReason {
 				t.Fatalf("expected code %v and reason %q, got %v", tt.wantCode, tt.wantReason, err)

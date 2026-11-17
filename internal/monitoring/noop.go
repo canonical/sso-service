@@ -38,7 +38,7 @@ func (m *NoopMonitor) IncrementFirstSignIns(map[string]string) error {
 func (m *NoopMonitor) IncrementAttemptsCompleted() error {
 	return nil
 }
-func (m *NoopMonitor) IncrementCompleteAttemptRefused() error {
+func (m *NoopMonitor) IncrementVerifyAttemptRefused() error {
 	return nil
 }
 func (m *NoopMonitor) IncrementTenantServiceWriteFailures(map[string]string) error {

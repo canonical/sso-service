@@ -450,9 +450,9 @@ func (f *fakeTenants) GetTenantSSOPolicy(_ context.Context, r *v0tenant.GetTenan
 	return &v0tenant.GetTenantSSOPolicyResponse{Policy: noPolicy(r.TenantId)}, nil
 }
 
-// PutTenantSSOPolicy writes the enforcement, auto-join and bindings; the
+// SetTenantSSOPolicy writes the enforcement, auto-join and bindings; the
 // domains stay as stored.
-func (f *fakeTenants) PutTenantSSOPolicy(_ context.Context, r *v0tenant.PutTenantSSOPolicyRequest) (*v0tenant.PutTenantSSOPolicyResponse, error) {
+func (f *fakeTenants) SetTenantSSOPolicy(_ context.Context, r *v0tenant.SetTenantSSOPolicyRequest) (*v0tenant.SetTenantSSOPolicyResponse, error) {
 	if r.Enforcement != v0tenant.Enforcement_ENFORCEMENT_REQUIRED && r.Enforcement != v0tenant.Enforcement_ENFORCEMENT_OPTIONAL {
 		return nil, status.Error(codes.InvalidArgument, "invalid sso policy: enforcement must be OPTIONAL or REQUIRED")
 	}
@@ -464,7 +464,7 @@ func (f *fakeTenants) PutTenantSSOPolicy(_ context.Context, r *v0tenant.PutTenan
 		return nil, err
 	}
 
-	return &v0tenant.PutTenantSSOPolicyResponse{Policy: policy}, nil
+	return &v0tenant.SetTenantSSOPolicyResponse{Policy: policy}, nil
 }
 
 // SetTenantSSODomains writes the domains; the enforcement, auto-join and
