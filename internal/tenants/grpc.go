@@ -34,7 +34,7 @@ const serviceConfig = `{"methodConfig": [{
 	"name": [
 		{"service": "identity.platform.api.tenant.TenantSignInService", "method": "GetSignInContext"},
 		{"service": "identity.platform.api.tenant.TenantSSOPolicyService", "method": "GetTenantSSOPolicy"},
-		{"service": "identity.platform.api.tenant.TenantSSOPolicyService", "method": "PutTenantSSOPolicy"},
+		{"service": "identity.platform.api.tenant.TenantSSOPolicyService", "method": "SetTenantSSOPolicy"},
 		{"service": "identity.platform.api.tenant.TenantSSOPolicyService", "method": "SetTenantSSODomains"},
 		{"service": "identity.platform.api.tenant.TenantSSOPolicyService", "method": "RemoveTenantSSOBinding"}
 	],
