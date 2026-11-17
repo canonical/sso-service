@@ -85,20 +85,20 @@ func (h *Handler) StartAttempt(ctx context.Context, req *v0sso.StartAttemptReque
 	return &v0sso.StartAttemptResponse{Ticket: ticket}, nil
 }
 
-func (h *Handler) CompleteAttempt(ctx context.Context, req *v0sso.CompleteAttemptRequest) (*v0sso.CompleteAttemptResponse, error) {
-	ctx, span := h.tracer.Start(ctx, "sso.Handler.CompleteAttempt")
+func (h *Handler) VerifyAttempt(ctx context.Context, req *v0sso.VerifyAttemptRequest) (*v0sso.VerifyAttemptResponse, error) {
+	ctx, span := h.tracer.Start(ctx, "sso.Handler.VerifyAttempt")
 	defer span.End()
 
 	if err := h.validator.Validate(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
 	}
 
-	ticket, err := h.service.CompleteAttempt(ctx, req.GetTicket(), strings.ToLower(req.GetIdentityId()), req.GetReceipt())
+	ticket, err := h.service.VerifyAttempt(ctx, req.GetTicket(), strings.ToLower(req.GetIdentityId()), req.GetReceipt())
 	if err != nil {
-		return nil, h.mapErrorToStatus(err, "complete attempt")
+		return nil, h.mapErrorToStatus(err, "verify attempt")
 	}
 
-	return &v0sso.CompleteAttemptResponse{ConnectionId: ticket.ConnectionID, TenantId: ticket.TenantID}, nil
+	return &v0sso.VerifyAttemptResponse{ConnectionId: ticket.ConnectionID, TenantId: ticket.TenantID}, nil
 }
 
 func (h *Handler) ListLinks(ctx context.Context, req *v0sso.ListLinksRequest) (*v0sso.ListLinksResponse, error) {

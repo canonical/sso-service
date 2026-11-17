@@ -199,8 +199,8 @@ func (h *Handler) GetTenantSSOPolicy(ctx context.Context, req *v0sso.GetTenantSS
 	return &v0sso.GetTenantSSOPolicyResponse{Policy: policy}, nil
 }
 
-func (h *Handler) PutTenantSSOPolicy(ctx context.Context, req *v0sso.PutTenantSSOPolicyRequest) (*v0sso.PutTenantSSOPolicyResponse, error) {
-	ctx, span := h.tracer.Start(ctx, "admin.Handler.PutTenantSSOPolicy")
+func (h *Handler) SetTenantSSOPolicy(ctx context.Context, req *v0sso.SetTenantSSOPolicyRequest) (*v0sso.SetTenantSSOPolicyResponse, error) {
+	ctx, span := h.tracer.Start(ctx, "admin.Handler.SetTenantSSOPolicy")
 	defer span.End()
 
 	if err := h.validator.Validate(req); err != nil {
@@ -212,12 +212,12 @@ func (h *Handler) PutTenantSSOPolicy(ctx context.Context, req *v0sso.PutTenantSS
 		bindings[i] = &v0tenant.SSOBinding{ConnectionId: strings.ToLower(b.GetConnectionId()), Active: b.GetActive()}
 	}
 
-	policy, err := h.service.PutTenantSSOPolicy(ctx, strings.ToLower(req.GetTenantId()), req.GetEnforcement(), req.GetAutoJoin(), bindings)
+	policy, err := h.service.SetTenantSSOPolicy(ctx, strings.ToLower(req.GetTenantId()), req.GetEnforcement(), req.GetAutoJoin(), bindings)
 	if err != nil {
 		return nil, h.mapErrorToStatus(err, "put tenant sso policy")
 	}
 
-	return &v0sso.PutTenantSSOPolicyResponse{Policy: policy}, nil
+	return &v0sso.SetTenantSSOPolicyResponse{Policy: policy}, nil
 }
 
 // ListAllConnections lists every connection, or one owner's.

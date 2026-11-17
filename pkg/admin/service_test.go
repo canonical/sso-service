@@ -832,7 +832,7 @@ func TestService_GetTenantSSOPolicy(t *testing.T) {
 	}
 }
 
-func TestService_PutTenantSSOPolicy(t *testing.T) {
+func TestService_SetTenantSSOPolicy(t *testing.T) {
 	required := v0tenant.Enforcement_ENFORCEMENT_REQUIRED
 	written := &v0tenant.TenantSSOPolicy{TenantId: tenantA, Enforcement: required}
 	active := []*v0tenant.SSOBinding{{ConnectionId: connA, Active: true}}
@@ -851,7 +851,7 @@ func TestService_PutTenantSSOPolicy(t *testing.T) {
 		}
 		gomock.InOrder(
 			m.storage.EXPECT().LockConnections(inTx, ids).Return(locked, nil),
-			m.tenants.EXPECT().PutTenantSSOPolicy(inTx, &v0tenant.PutTenantSSOPolicyRequest{
+			m.tenants.EXPECT().SetTenantSSOPolicy(inTx, &v0tenant.SetTenantSSOPolicyRequest{
 				TenantId: tenantA, Enforcement: required, AutoJoin: true, Bindings: bindings,
 			}).Return(answer, writeErr),
 		)
@@ -921,7 +921,7 @@ func TestService_PutTenantSSOPolicy(t *testing.T) {
 			bindings: active,
 			setupMocks: func(m *serviceMocks) {
 				writes(m, active, []*types.Connection{connectionOf(tenantA, true)}, unavailable())
-				m.monitor.EXPECT().IncrementTenantServiceWriteFailures(map[string]string{"rpc": "PutTenantSSOPolicy"}).Return(nil)
+				m.monitor.EXPECT().IncrementTenantServiceWriteFailures(map[string]string{"rpc": "SetTenantSSOPolicy"}).Return(nil)
 			},
 			expectedErr: tenants.ErrUnavailable,
 		},
@@ -937,10 +937,10 @@ func TestService_PutTenantSSOPolicy(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			s, mocks := newTestService(t, "admin.Service.PutTenantSSOPolicy")
+			s, mocks := newTestService(t, "admin.Service.SetTenantSSOPolicy")
 			tc.setupMocks(mocks)
 
-			got, err := s.PutTenantSSOPolicy(asAdmin(), tenantA, required, true, tc.bindings)
+			got, err := s.SetTenantSSOPolicy(asAdmin(), tenantA, required, true, tc.bindings)
 
 			if !errors.Is(err, tc.expectedErr) {
 				t.Fatalf("expected error %v, got %v", tc.expectedErr, err)

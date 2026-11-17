@@ -126,17 +126,17 @@ func (s *Service) StartAttempt(ctx context.Context, tenantID, email, connectionI
 	return ticket, nil
 }
 
-// CompleteAttempt confirms that the sign-in the ticket started ended at this
+// VerifyAttempt confirms that the sign-in the ticket started ended at this
 // account: the ticket is unexpired, the account has the ticket's address and
 // holds a link to the ticket's connection, and the receipt shows that the
 // browser completed the sign-in as the subject of such a link. Nothing is
 // stored or written, so a repeat gets the same answer.
-func (s *Service) CompleteAttempt(ctx context.Context, token, identityID, receipt string) (*types.Ticket, error) {
-	ctx, span := s.tracer.Start(ctx, "sso.Service.CompleteAttempt")
+func (s *Service) VerifyAttempt(ctx context.Context, token, identityID, receipt string) (*types.Ticket, error) {
+	ctx, span := s.tracer.Start(ctx, "sso.Service.VerifyAttempt")
 	defer span.End()
 
 	refused := func(detail string) error {
-		s.incrementCompleteAttemptRefused()
+		s.incrementVerifyAttemptRefused()
 		s.logger.Infow("complete attempt refused", "detail", detail,
 			"attempt", secrets.Digest(token), "identity", secrets.Digest(identityID))
 
@@ -272,8 +272,8 @@ func (s *Service) incrementAttemptsCompleted() {
 	}
 }
 
-func (s *Service) incrementCompleteAttemptRefused() {
-	if err := s.monitor.IncrementCompleteAttemptRefused(); err != nil {
+func (s *Service) incrementVerifyAttemptRefused() {
+	if err := s.monitor.IncrementVerifyAttemptRefused(); err != nil {
 		s.logger.Warnf("failed to increment complete attempt refused counter: %v", err)
 	}
 }
