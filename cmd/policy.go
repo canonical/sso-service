@@ -67,7 +67,7 @@ var setPolicyCmd = &cobra.Command{
 		}
 		defer closeConn()
 
-		resp, err := tenantAdmin.PutTenantSSOPolicy(authenticatedContext(cmd.Context()), &v0.PutTenantSSOPolicyRequest{
+		resp, err := tenantAdmin.SetTenantSSOPolicy(authenticatedContext(cmd.Context()), &v0.SetTenantSSOPolicyRequest{
 			TenantId:    args[0],
 			Enforcement: enforcement,
 			Bindings:    bindings,
