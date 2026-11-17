@@ -50,7 +50,7 @@ const (
 )
 
 // Ticket is a sign-in attempt, sealed: nothing is stored for it. It reaches
-// /login as hydra-sso's login_hint, and CompleteAttempt from the login UI.
+// /login as hydra-sso's login_hint, and VerifyAttempt from the login UI.
 type Ticket struct {
 	TenantID       string `json:"t"`
 	ConnectionID   string `json:"c"`

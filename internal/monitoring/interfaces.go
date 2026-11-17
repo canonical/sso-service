@@ -12,7 +12,7 @@ type MonitorInterface interface {
 	// Expected tags: "outcome".
 	IncrementFirstSignIns(map[string]string) error
 	IncrementAttemptsCompleted() error
-	IncrementCompleteAttemptRefused() error
+	IncrementVerifyAttemptRefused() error
 	// Expected tags: "rpc".
 	IncrementTenantServiceWriteFailures(map[string]string) error
 }

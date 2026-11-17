@@ -111,8 +111,8 @@ func TestDialOptions_Retry(t *testing.T) {
 			_, err := c.GetTenantSSOPolicy(context.Background(), "t")
 			return err
 		},
-		"PutTenantSSOPolicy": func(c *Client) error {
-			_, err := c.PutTenantSSOPolicy(context.Background(), &v0tenant.PutTenantSSOPolicyRequest{TenantId: "t"})
+		"SetTenantSSOPolicy": func(c *Client) error {
+			_, err := c.SetTenantSSOPolicy(context.Background(), &v0tenant.SetTenantSSOPolicyRequest{TenantId: "t"})
 			return err
 		},
 		"SetTenantSSODomains": func(c *Client) error {
@@ -164,7 +164,7 @@ func TestDialOptions_Retry(t *testing.T) {
 		t.Run("no retry of "+code.String(), func(t *testing.T) {
 			f := &fakeTenantService{err: status.Error(code, "no")}
 
-			_, err := dial(t, f, token, callTimeout).PutTenantSSOPolicy(context.Background(), &v0tenant.PutTenantSSOPolicyRequest{TenantId: "t"})
+			_, err := dial(t, f, token, callTimeout).SetTenantSSOPolicy(context.Background(), &v0tenant.SetTenantSSOPolicyRequest{TenantId: "t"})
 			if !errors.Is(err, expectedErr) {
 				t.Errorf("expected %v, got %v", expectedErr, err)
 			}
