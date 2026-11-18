@@ -116,6 +116,30 @@ which must be reachable from the internal network only.
 With `AUTHENTICATION_ENABLED=false` no token is verified: a bearer token is still required, and its
 value is taken as the caller's id. Use it in development only.
 
+## Management commands
+
+The binary is also a client of its own management API, for use until there is a console and by the
+charm's actions. Each command calls a running service on its gRPC listener and prints the API's
+response as JSON:
+
+```shell
+sso-service connection list [tenant-id]          # every tenant's when no tenant is given
+sso-service connection get <tenant-id> <connection-id>
+sso-service connection create <tenant-id> --label <label> --issuer <url> --client-id <id>
+sso-service connection update <tenant-id> <connection-id> [--label <label>]
+sso-service connection delete <connection-id>
+sso-service connection test <tenant-id> <connection-id>   # prints the URL to open in a browser
+sso-service policy get <tenant-id>
+sso-service policy set <tenant-id> --enforcement optional|required [--binding <connection-id>[:inactive]]... [--auto-join]
+sso-service domains get <tenant-id>
+sso-service domains set <tenant-id> [domain...]
+```
+
+`--grpc-endpoint` (default `localhost:50051`) is the service's address and `--token` the caller's
+access token (see [Authentication](#authentication)). `connection create` and `connection update`
+take the client secret from `--client-secret` or, when the flag is not set, from the `CLIENT_SECRET`
+environment variable, which keeps it out of the command's arguments.
+
 ## Errors
 
 An HTTP error is `{"status": <HTTP status>, "message": "<text>"}`. An error callers branch on starts
