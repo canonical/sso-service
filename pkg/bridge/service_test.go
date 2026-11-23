@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -421,6 +422,49 @@ func TestService_StartLogin(t *testing.T) {
 			}
 			if got := strings.Join(m.errors, "; "); got != tc.expectedLog {
 				t.Errorf("expected the error log %q, got %q", tc.expectedLog, got)
+			}
+		})
+	}
+}
+
+// A browser keeps the newest binding that is still of use, and the one /login
+// sets.
+func TestService_BindingsToClear(t *testing.T) {
+	binding := func(state string, expiresIn time.Duration) string {
+		signIn := newSignIn()
+		signIn.State, signIn.ExpiresAt = state, testNow.Add(expiresIn).Unix()
+		return seal(t, types.PurposeSignIn, signIn)
+	}
+	testCases := []struct {
+		name     string
+		bindings map[string]string
+		expected []string
+	}{
+		{
+			name:     "all but the newest",
+			bindings: map[string]string{"a": binding("a", 5*time.Minute), "b": binding("b", 29*time.Minute), "c": binding("c", 10*time.Minute)},
+			expected: []string{"a", "c"},
+		},
+		{
+			name: "of no use",
+			bindings: map[string]string{
+				"expired": binding("expired", 0), "garbage": "garbage", "ticket": seal(t, types.PurposeTicket, newTicket()),
+			},
+			expected: []string{"expired", "garbage", "ticket"},
+		},
+		{
+			name:     "the same expiry",
+			bindings: map[string]string{"b": binding("b", time.Minute), "a": binding("a", time.Minute)},
+			expected: []string{"b"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _ := newService(t)
+
+			if got := s.BindingsToClear(tc.bindings); !slices.Equal(got, tc.expected) {
+				t.Errorf("expected %v cleared, got %v", tc.expected, got)
 			}
 		})
 	}

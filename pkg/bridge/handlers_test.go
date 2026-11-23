@@ -72,6 +72,9 @@ func TestAPI_RegisterEndpoints(t *testing.T) {
 }
 
 func TestAPI_login(t *testing.T) {
+	// The browser sent the binding cookies of two older sign-ins.
+	older := map[string]string{bindingCookieName("old"): "old-bind", bindingCookieName("older"): "older-bind"}
+
 	testCases := []struct {
 		name             string
 		path             string
@@ -79,16 +82,20 @@ func TestAPI_login(t *testing.T) {
 		expectedStatus   int
 		expectedLocation string
 		expectedCookie   bool
+		// expectedCleared are the states whose binding cookies are cleared.
+		expectedCleared []string
 	}{
 		{
 			name: "success",
 			path: "/login?login_challenge=lc",
 			setupMocks: func(mockSvc *MockServiceInterface) {
 				mockSvc.EXPECT().StartLogin(gomock.Any(), "lc").Return("https://idp.example/authorize", &Binding{State: "st", Value: "bind"}, nil)
+				mockSvc.EXPECT().BindingsToClear(older).Return([]string{bindingCookieName("older")})
 			},
 			expectedStatus:   http.StatusFound,
 			expectedLocation: "https://idp.example/authorize",
 			expectedCookie:   true,
+			expectedCleared:  []string{"older"},
 		},
 		{
 			name: "rejected at hydra",
@@ -124,7 +131,12 @@ func TestAPI_login(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			w := serve(t, httptest.NewRequest(http.MethodGet, tc.path, nil), "bridge.API.login", tc.setupMocks)
+			r := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			for name, value := range older {
+				r.AddCookie(&http.Cookie{Name: name, Value: value})
+			}
+			r.AddCookie(&http.Cookie{Name: receiptCookieName("t"), Value: "receipt"})
+			w := serve(t, r, "bridge.API.login", tc.setupMocks)
 
 			if w.Code != tc.expectedStatus || w.Header().Get("Location") != tc.expectedLocation {
 				t.Fatalf("expected status %d to %q, got %d to %q", tc.expectedStatus, tc.expectedLocation, w.Code, w.Header().Get("Location"))
@@ -139,10 +151,15 @@ func TestAPI_login(t *testing.T) {
 				}
 				return
 			}
-			if len(cookies) != 1 {
-				t.Fatalf("expected the binding cookie, got %+v", cookies)
+			if len(cookies) != len(tc.expectedCleared)+1 {
+				t.Fatalf("expected %d cookies cleared and the binding cookie, got %+v", len(tc.expectedCleared), cookies)
 			}
-			cookie := cookies[0]
+			for i, state := range tc.expectedCleared {
+				if c := cookies[i]; c.Name != bindingCookieName(state) || c.Value != "" || c.MaxAge >= 0 || c.Path != "/" || !c.Secure {
+					t.Errorf("expected the binding cookie of %q cleared, got %+v", state, c)
+				}
+			}
+			cookie := cookies[len(cookies)-1]
 			if cookie.Name != bindingCookieName("st") || cookie.Value != "bind" || cookie.Path != "/" ||
 				!cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode ||
 				cookie.MaxAge != int(limits.AttemptTTL.Seconds()) {

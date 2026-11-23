@@ -85,6 +85,10 @@ func (p *pages) StartLogin(ctx context.Context, _ string) (string, *bridge.Bindi
 	return "https://idp.example/authorize", nil, nil
 }
 
+func (p *pages) BindingsToClear(map[string]string) []string {
+	return nil
+}
+
 func (p *pages) Callback(ctx context.Context, callback *bridge.Callback) (*bridge.Result, error) {
 	p.ctx, p.callback = ctx, callback
 	return &bridge.Result{Redirect: "https://kratos.example/next"}, nil

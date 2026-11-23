@@ -13,7 +13,7 @@ import (
 // answered directly.
 var (
 	ErrUnknownState    = errors.New("this sign-in is unknown, expired or already used")
-	ErrBindingMissing  = errors.New("this sign-in was already completed, or was not started in this browser")
+	ErrBindingMissing  = errors.New("this sign-in was already completed, has expired, was replaced by a newer one, or was not started in this browser")
 	ErrBindingMismatch = errors.New("this sign-in was started in another browser")
 	ErrUnknownLogin    = errors.New("this sign-in request is unknown or expired")
 )

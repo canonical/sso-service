@@ -16,6 +16,7 @@ import (
 
 type ServiceInterface interface {
 	StartLogin(ctx context.Context, challenge string) (string, *Binding, error)
+	BindingsToClear(bindings map[string]string) []string
 	Callback(ctx context.Context, callback *Callback) (*Result, error)
 	Consent(ctx context.Context, challenge string) (string, error)
 }

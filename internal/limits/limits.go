@@ -26,4 +26,8 @@ const (
 
 	MaxConnectionsPerTenant = 5
 	MaxResponseBytes        = 64 << 10
+
+	// MaxBindingCookies bounds the open sign-ins of one browser: a binding
+	// cookie is about 2.5 kB, and goes with every request to the shared host.
+	MaxBindingCookies = 2
 )

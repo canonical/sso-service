@@ -92,6 +92,18 @@ func bindingFrom(r *http.Request, state string) string {
 	return ""
 }
 
+// bindingCookies are the binding cookies the browser sent, by name.
+func bindingCookies(r *http.Request) map[string]string {
+	bindings := make(map[string]string)
+	for _, cookie := range r.Cookies() {
+		if strings.HasPrefix(cookie.Name, bindingCookiePrefix) {
+			bindings[cookie.Name] = cookie.Value
+		}
+	}
+
+	return bindings
+}
+
 func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	ctx, span := a.tracer.Start(r.Context(), "bridge.API.login")
 	defer span.End()
@@ -110,6 +122,9 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if binding != nil {
+		for _, name := range a.service.BindingsToClear(bindingCookies(r)) {
+			http.SetCookie(w, hostCookie(name, "", -1))
+		}
 		http.SetCookie(w, bindingCookie(binding.State, binding.Value, int(limits.AttemptTTL.Seconds())))
 	}
 	http.Redirect(w, r, target, http.StatusFound)

@@ -6,10 +6,12 @@
 package bridge
 
 import (
+	"cmp"
 	"context"
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -187,6 +189,39 @@ func (s *Service) StartLogin(ctx context.Context, challenge string) (string, *Bi
 	}
 
 	return target, &Binding{State: signIn.State, Value: sealed}, nil
+}
+
+// BindingsToClear names the binding cookies, of those the browser sent, that
+// /login clears when it sets a new one: all but the newest that opens and has
+// not expired, so that the browser keeps at most limits.MaxBindingCookies.
+func (s *Service) BindingsToClear(bindings map[string]string) []string {
+	type binding struct {
+		name      string
+		expiresAt int64
+	}
+
+	now := s.now()
+	var valid []binding
+	var stale []string
+	for name, value := range bindings {
+		signIn := new(types.SignIn)
+		if err := s.envelope.Open(types.PurposeSignIn, value, signIn); err != nil || signIn.Expired(now) {
+			stale = append(stale, name)
+
+			continue
+		}
+		valid = append(valid, binding{name: name, expiresAt: signIn.ExpiresAt})
+	}
+	// Newest first, and by name on a tie, so that map order changes nothing.
+	slices.SortFunc(valid, func(a, b binding) int {
+		return cmp.Or(cmp.Compare(b.expiresAt, a.expiresAt), strings.Compare(a.name, b.name))
+	})
+	for _, b := range valid[min(len(valid), limits.MaxBindingCookies-1):] {
+		stale = append(stale, b.name)
+	}
+	slices.Sort(stale)
+
+	return stale
 }
 
 func (s *Service) rejectAtLogin(ctx context.Context, challenge, reason, detail string) (string, *Binding, error) {
