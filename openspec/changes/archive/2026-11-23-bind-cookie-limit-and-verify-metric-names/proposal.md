@@ -10,7 +10,7 @@ A review of the specification found three gaps and one risk:
 ## What Changes
 
 - The name of the binding cookie uses the first 16 lower-case hex digits of the SHA-256 of the `state`. The code did this already.
-- A browser keeps at most 2 binding cookies. When `/login` sets a binding cookie, it clears the other binding cookies, but for the newest one that is still valid.
+- When `/login` sets a binding cookie, it clears the other binding cookies, but for the newest one that is still valid. Thus the browser keeps the new cookie and at most 1 older cookie.
 - **BREAKING** for dashboards and alerts: `sso_attempts_completed_total` is now `sso_attempts_verified_total`, and `sso_complete_attempt_refused_total` is now `sso_verify_attempt_refused_total`. No release has the old names.
 - The specification defines the outcomes of an accepted sign-in, `linked_existing` included.
 

@@ -5,7 +5,7 @@ The system SHALL use a cookie to bind a sign-in to the browser that the sign-in 
 
 The value of the cookie SHALL be a sealed token (see `secrets`). The token holds the `state`, the nonce, the PKCE verifier, the login challenge and an expiry 30 minutes ahead. The cookie is host-only with `Path=/`, `Secure`, `HttpOnly`, `SameSite=Lax` and a `Max-Age` of 30 minutes. The system SHALL clear the cookie after the callback accepts or rejects the login request.
 
-A browser SHALL keep at most 2 binding cookies. When `/login` sets a binding cookie, the system SHALL clear all the other binding cookies that the browser sent, but for one. The system SHALL keep the cookie whose token opens, is not expired, and expires last. Thus the browser keeps the new cookie and at most 1 older cookie. When `/login` sets no binding cookie, the system SHALL NOT clear a binding cookie.
+The system SHALL limit the binding cookies of a browser. When `/login` sets a binding cookie, the system SHALL clear all the other binding cookies that the browser sent, but for at most one. The system SHALL keep the cookie whose token opens, is not expired, and expires last. Of 2 tokens that expire in the same second, the system keeps one. Thus the browser keeps the new cookie and at most 1 older cookie. Sign-ins that start at the same time can each keep the same older cookie. When `/login` sets no binding cookie, the system SHALL NOT clear a binding cookie.
 
 #### Scenario: The answer is opened in another browser
 - **WHEN** a person opens the answer of the identity provider in a browser that did not start the sign-in
@@ -34,7 +34,7 @@ On `GET /callback/{tenant_id}` with a `state` that is not the `state` of a test 
 | # | check | when it fails |
 |---|---|---|
 | 1 | the answer has a `state` | page, HTTP 400 |
-| 2 | the browser sent the binding cookie of this `state` | page, HTTP 400: already completed, or not started in this browser |
+| 2 | the browser sent the binding cookie of this `state` | page, HTTP 400: already completed, expired, replaced by a newer sign-in, or not started in this browser |
 | 3 | the cookie opens and holds this `state` | page, HTTP 400: started in another browser |
 | 4 | hydra-sso still knows the cookie's login challenge | page, HTTP 400 (HTTP 500 when the system cannot reach hydra-sso) |
 | 5 | the ticket in the `login_hint` of the login request opens | `expired` |
