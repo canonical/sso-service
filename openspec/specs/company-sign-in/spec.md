@@ -16,6 +16,7 @@ Key decisions:
 - **A redirect URI per tenant.** All the connections of a tenant share one redirect URI. A tenant admin can register it before the connection exists. The service takes an answer only at the redirect URI of the tenant that owns the sign-in's connection. Thus a person who controls one tenant's identity provider cannot make the service handle its answer as the answer of another tenant. For that reason we turned down one shared `/callback`. We also turned down a redirect URI per connection. With it, the admin must make the connection before they can register its redirect URI. All the connections of a tenant have the same admins, so a URI per connection adds no protection against them.
 - **Re-authentication is a request.** When an app asks for a fresh sign-in, the service sends `prompt=login` and `max_age=0` to the identity provider. Many providers ignore these parameters or send no `auth_time`, and the service cannot make an external provider ask again. Thus the service does not check what the provider did, and it does not claim that the user signed in again.
 - **A browser-binding cookie instead of a stored attempt.** The service sets a sealed cookie at `/login`. The callback takes the nonce, the PKCE verifier and the login challenge from that cookie, and never from the URL. An answer that a person opens in another browser does nothing.
+- **At most 2 binding cookies in a browser.** A binding cookie holds hydra-sso's login challenge, so it is about 2.5 kB. The browser sends all the cookies of the host with each request, also to Kratos and to the login UI. Thus the cookies of abandoned sign-ins could make the Cookie header too large for a proxy. 2 cookies let a user do 2 sign-ins at the same time, for example in 2 tabs. We turned down 1 cookie for each browser, because then a second sign-in stops the first.
 - **A receipt cookie for the browser that signed in.** The login UI must know that the sign-in that a ticket started is complete. The login UI must also know that the browser that it talks to completed that sign-in. Thus the callback sets a cookie, and the login UI passes that cookie on to `VerifyAttempt`. `sign-in-attempts` says why the service keeps the proof in the browser and not on a server. The cookie holds nothing about the user.
 - **Kratos writes every link.** For a subject with no link, this service only decides if the sign-in can continue. Then Kratos registers a new account, or links the subject to the existing account after the user signs in to that account another way. We turned down a design in which this service writes the link. In that design, the service must prove on its own that the user owns the account.
 - **This service does not check a subject that already has a link against the tenant.** The login UI does those checks. For every session, it checks membership and the tenant's policy before it accepts an app's login.
@@ -64,9 +65,11 @@ The identity provider can ignore `prompt=login` and `max_age`. The system SHALL 
 - **AND** the redirect URI is `<PUBLIC_URL>/callback/<tenant id>`, for the tenant that owns the connection
 
 ### Requirement: The browser-binding cookie
-The system SHALL use a cookie to bind a sign-in to the browser that the sign-in started in. The name of the cookie SHALL be `__Host-sso_bind_` followed by 16 hex characters of the SHA-256 of the `state`. Thus 2 sign-ins in the same browser do not overwrite each other.
+The system SHALL use a cookie to bind a sign-in to the browser that the sign-in started in. The name of the cookie SHALL be `__Host-sso_bind_` followed by the first 16 lower-case hex digits of the SHA-256 of the `state`. Thus 2 sign-ins in the same browser do not overwrite each other.
 
 The value of the cookie SHALL be a sealed token (see `secrets`). The token holds the `state`, the nonce, the PKCE verifier, the login challenge and an expiry 30 minutes ahead. The cookie is host-only with `Path=/`, `Secure`, `HttpOnly`, `SameSite=Lax` and a `Max-Age` of 30 minutes. The system SHALL clear the cookie after the callback accepts or rejects the login request.
+
+A browser SHALL keep at most 2 binding cookies. When `/login` sets a binding cookie, the system SHALL clear all the other binding cookies that the browser sent, but for one. The system SHALL keep the cookie whose token opens, is not expired, and expires last. Thus the browser keeps the new cookie and at most 1 older cookie. When `/login` sets no binding cookie, the system SHALL NOT clear a binding cookie.
 
 #### Scenario: The answer is opened in another browser
 - **WHEN** a person opens the answer of the identity provider in a browser that did not start the sign-in
@@ -78,6 +81,16 @@ The value of the cookie SHALL be a sealed token (see `secrets`). The token holds
 - **WHEN** a browser sends the same answer again after the system accepted the sign-in
 - **THEN** the cookie is gone
 - **AND** the system answers HTTP 400
+
+#### Scenario: A third sign-in in the same browser
+- **WHEN** a browser that has 2 valid binding cookies starts a third sign-in
+- **THEN** the system clears the older of the 2 cookies
+- **AND** the browser has 2 binding cookies
+- **AND** the answer to the oldest sign-in fails check 2 at the callback
+
+#### Scenario: A binding cookie that is of no use
+- **WHEN** a browser sends `/login` a binding cookie that does not open, or whose token is expired
+- **THEN** the system clears that cookie when it sets the new binding cookie
 
 ### Requirement: The receipt cookie
 The system SHALL set a receipt cookie in the response of `GET /callback/{tenant_id}` that accepts a sign-in. That response is the response that redirects the browser to hydra-sso. The name of the cookie is `__Host-sso_receipt_` followed by the first 16 lower-case hex digits of the SHA-256 of the ticket. Thus each attempt has a cookie of its own.
@@ -132,10 +145,13 @@ On `GET /callback/{tenant_id}` with a `state` that is not the `state` of a test 
 | 15 | when an account holds the link: that account's address equals the ticket's address (the comparison ignores case) | `already_linked` |
 | 16 | when no account holds the link: the rules of the next requirement | see that requirement |
 
+When check 15 passes, the system accepts the login request and counts the outcome as `linked_existing`.
+
 #### Scenario: A returning user
 - **WHEN** a user signs in at the identity provider with the address that the user entered
 - **AND** the account of the user holds a link for the subject
 - **THEN** the system accepts the login request and does not call the tenant service
+- **AND** the system counts the outcome as `linked_existing`
 
 #### Scenario: The answer comes to another tenant's redirect URI
 - **WHEN** an answer for a sign-in through a connection of tenant A arrives, with its cookie, at `/callback/<B>`
