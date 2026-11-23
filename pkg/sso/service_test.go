@@ -360,7 +360,7 @@ func TestService_VerifyAttempt(t *testing.T) {
 				m.envelope.EXPECT().Open(types.PurposeTicket, "sealed", gomock.Any()).Return(secrets.ErrUnsealable)
 				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:    "expired ticket",
@@ -369,7 +369,7 @@ func TestService_VerifyAttempt(t *testing.T) {
 				opens(m, expired)
 				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:    "account not found",
@@ -379,7 +379,7 @@ func TestService_VerifyAttempt(t *testing.T) {
 				m.kratos.EXPECT().GetIdentity(gomock.Any(), identityID, kratos.OIDCCredential).Return(nil, kratos.ErrNotFound)
 				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:    "another address",
@@ -390,7 +390,7 @@ func TestService_VerifyAttempt(t *testing.T) {
 					Return(account("bob@test.example", link(connA, "s"), nil), nil)
 				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:    "no link to the connection",
@@ -401,24 +401,24 @@ func TestService_VerifyAttempt(t *testing.T) {
 					Return(account(email, link(connB, "s"), nil), nil)
 				m.monitor.EXPECT().IncrementVerifyAttemptRefused().Return(nil)
 			},
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:        "no receipt",
 			setupMocks:  refusedWithLink,
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:        "receipt for another ticket",
 			receipt:     receipt("another", connA+":s"),
 			setupMocks:  refusedWithLink,
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:        "receipt for a subject the account does not hold",
 			receipt:     receipt("sealed", connA+":t"),
 			setupMocks:  refusedWithLink,
-			expectedErr: ErrAttemptNotCompleted,
+			expectedErr: ErrAttemptNotVerified,
 		},
 		{
 			name:    "kratos error",

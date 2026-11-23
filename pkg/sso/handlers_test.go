@@ -191,10 +191,10 @@ func TestHandler_VerifyAttempt(t *testing.T) {
 			wantCode:   codes.InvalidArgument,
 		},
 		{
-			name:    "attempt not completed",
+			name:    "attempt not verified",
 			request: &v0sso.VerifyAttemptRequest{Ticket: "sealed", IdentityId: identityID},
 			setupMocks: func(mockSvc *MockServiceInterface) {
-				mockSvc.EXPECT().VerifyAttempt(gomock.Any(), "sealed", identityID, "").Return(nil, ErrAttemptNotCompleted)
+				mockSvc.EXPECT().VerifyAttempt(gomock.Any(), "sealed", identityID, "").Return(nil, ErrAttemptNotVerified)
 			},
 			wantCode:   codes.FailedPrecondition,
 			wantReason: apierrors.NotApplicable,
@@ -333,8 +333,8 @@ func TestHandler_mapErrorToStatus(t *testing.T) {
 			wantMessage: "NOT_APPLICABLE: the connection does not exist or is not tested",
 		},
 		{
-			name:        "attempt not completed",
-			err:         ErrAttemptNotCompleted,
+			name:        "attempt not verified",
+			err:         ErrAttemptNotVerified,
 			wantCode:    codes.FailedPrecondition,
 			wantReason:  apierrors.NotApplicable,
 			wantMessage: "NOT_APPLICABLE: the attempt did not end at this account, or has expired",

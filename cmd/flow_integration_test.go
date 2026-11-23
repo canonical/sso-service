@@ -324,9 +324,9 @@ func (b *browser) receipt(p *plane, ticket string) string {
 	return ""
 }
 
-// complete is the login UI's question when b comes back with a session of
+// verify is the login UI's question when b comes back with a session of
 // identity: did the sign-in ticket started end at that account, in b.
-func (p *plane) complete(b *browser, ticket, identity string) (*v0sso.VerifyAttemptResponse, error) {
+func (p *plane) verify(b *browser, ticket, identity string) (*v0sso.VerifyAttemptResponse, error) {
 	return p.user.VerifyAttempt(as("login-ui"), &v0sso.VerifyAttemptRequest{Ticket: ticket, IdentityId: identity, Receipt: b.receipt(p, ticket)})
 }
 
@@ -526,23 +526,23 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		}
 
 		// Before Kratos links the account, the attempt did not end at it.
-		_, err = p.complete(b, start.Ticket, alice)
+		_, err = p.verify(b, start.Ticket, alice)
 		expectReason(t, err, apierrors.NotApplicable)
 
 		// Kratos's account linking writes the link.
 		p.kratos.link(alice, conn.Id, "alice-sub")
-		done, err := p.complete(b, start.Ticket, alice)
+		done, err := p.verify(b, start.Ticket, alice)
 		if err != nil || done.ConnectionId != conn.Id || done.TenantId != acme {
 			t.Fatalf("%v %v", done, err)
 		}
-		if _, err := p.complete(b, start.Ticket, alice); err != nil {
+		if _, err := p.verify(b, start.Ticket, alice); err != nil {
 			t.Fatalf("a repeat for the same account: %v", err)
 		}
-		_, err = p.complete(b, start.Ticket, uuid.NewString())
+		_, err = p.verify(b, start.Ticket, uuid.NewString())
 		expectReason(t, err, apierrors.NotApplicable)
 		// The receipt is in the browser that signed in at the IdP: to a
 		// browser that only holds the ticket, the attempt confirms nothing.
-		_, err = p.complete(p.browser(t), start.Ticket, alice)
+		_, err = p.verify(p.browser(t), start.Ticket, alice)
 		expectReason(t, err, apierrors.NotApplicable)
 
 		// Nothing is stored, so the ticket is not spent: until it
@@ -569,8 +569,8 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		if p.hydra.acceptedFor(challenge) != conn.Id+":alice-sub" {
 			t.Fatalf("not accepted: %v", p.hydra.rejectedAll())
 		}
-		if _, err := p.complete(b, next.Ticket, alice); err != nil {
-			t.Fatalf("an existing link completes at once: %v", err)
+		if _, err := p.verify(b, next.Ticket, alice); err != nil {
+			t.Fatalf("an existing link is verified at once: %v", err)
 		}
 	})
 
@@ -721,7 +721,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		}
 
 		iris := p.kratos.register("iris@test.example", conn.Id, "iris-sub")
-		if _, err := p.complete(b, start.Ticket, iris); err != nil {
+		if _, err := p.verify(b, start.Ticket, iris); err != nil {
 			t.Fatal(err)
 		}
 		// The membership is not sso-service's to create, nor the account its
@@ -743,7 +743,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 			t.Fatalf("not accepted: %v", p.hydra.rejectedAll())
 		}
 		p.kratos.link(bob, conn.Id, "bob-sub")
-		if _, err := p.complete(b, start.Ticket, bob); err != nil {
+		if _, err := p.verify(b, start.Ticket, bob); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := p.user.DeleteLink(as("login-ui"), &v0sso.DeleteLinkRequest{ConnectionId: conn.Id, IdentityId: bob}); err != nil {
@@ -805,7 +805,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		if _, err := p.admin.SetTenantSSOPolicy(as("owner"), autoJoin); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := p.complete(b, start.Ticket, hank); err != nil {
+		if _, err := p.verify(b, start.Ticket, hank); err != nil {
 			t.Fatal(err)
 		}
 		if p.tenants.isMember(hooli, hank) || !p.kratos.exists(hank) || p.kratos.writeCount() != 0 {

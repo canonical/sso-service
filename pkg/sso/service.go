@@ -137,10 +137,10 @@ func (s *Service) VerifyAttempt(ctx context.Context, token, identityID, receipt 
 
 	refused := func(detail string) error {
 		s.incrementVerifyAttemptRefused()
-		s.logger.Infow("complete attempt refused", "detail", detail,
+		s.logger.Infow("verify attempt refused", "detail", detail,
 			"attempt", secrets.Digest(token), "identity", secrets.Digest(identityID))
 
-		return ErrAttemptNotCompleted
+		return ErrAttemptNotVerified
 	}
 
 	ticket := new(types.Ticket)
@@ -174,7 +174,7 @@ func (s *Service) VerifyAttempt(ctx context.Context, token, identityID, receipt 
 	}
 
 	s.incrementAttemptsVerified()
-	s.logger.Infow("attempt completed", "attempt", secrets.Digest(token),
+	s.logger.Infow("attempt verified", "attempt", secrets.Digest(token),
 		"connection_id", ticket.ConnectionID, "tenant_id", ticket.TenantID, "identity", secrets.Digest(identityID))
 
 	return ticket, nil

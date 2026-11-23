@@ -139,8 +139,8 @@ func (h *Handler) mapErrorToStatus(err error, action string) error {
 		return nil
 	case errors.Is(err, ErrConnectionNotUsable):
 		return apierrors.New(codes.FailedPrecondition, apierrors.NotApplicable, ErrConnectionNotUsable.Error())
-	case errors.Is(err, ErrAttemptNotCompleted):
-		return apierrors.New(codes.FailedPrecondition, apierrors.NotApplicable, ErrAttemptNotCompleted.Error())
+	case errors.Is(err, ErrAttemptNotVerified):
+		return apierrors.New(codes.FailedPrecondition, apierrors.NotApplicable, ErrAttemptNotVerified.Error())
 	case errors.Is(err, ErrLastCredential):
 		return apierrors.New(codes.FailedPrecondition, apierrors.LastCredential, ErrLastCredential.Error())
 	case errors.Is(err, ErrAccountNotFound):
