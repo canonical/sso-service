@@ -4,6 +4,7 @@
 package idp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -11,10 +12,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/propagation"
 	"golang.org/x/net/http/httpproxy"
 
 	"github.com/canonical/sso-service/internal/limits"
@@ -24,15 +27,23 @@ import (
 // lead inside a network: address space used as private without being so by
 // RFC 1918, and the IPv6 forms that carry an arbitrary IPv4 address.
 var nonPublic = []netip.Prefix{
-	netip.MustParsePrefix("100.64.0.0/10"),  // carrier-grade NAT
-	netip.MustParsePrefix("198.18.0.0/15"),  // benchmarking, used as internal space
-	netip.MustParsePrefix("240.0.0.0/4"),    // reserved, used as internal space
-	netip.MustParsePrefix("64:ff9b::/96"),   // NAT64
-	netip.MustParsePrefix("64:ff9b:1::/48"), // NAT64, local use
-	netip.MustParsePrefix("2002::/16"),      // 6to4
+	netip.MustParsePrefix("0.0.0.0/8"),       // "this network"
+	netip.MustParsePrefix("100.64.0.0/10"),   // carrier-grade NAT
+	netip.MustParsePrefix("198.18.0.0/15"),   // benchmarking, used as internal space
+	netip.MustParsePrefix("240.0.0.0/4"),     // reserved, used as internal space
+	netip.MustParsePrefix("::/96"),           // IPv4-compatible
+	netip.MustParsePrefix("::ffff:0:0:0/96"), // SIIT, IPv4-translated
+	netip.MustParsePrefix("64:ff9b::/96"),    // NAT64
+	netip.MustParsePrefix("64:ff9b:1::/48"),  // NAT64, local use
+	netip.MustParsePrefix("2001::/32"),       // Teredo
+	netip.MustParsePrefix("2002::/16"),       // 6to4
 }
 
 func PublicUnicast(addr netip.Addr) bool {
+	// A public address needs no zone, and netip's predicates ignore one.
+	if addr.Zone() != "" {
+		return false
+	}
 	addr = addr.Unmap()
 	if !addr.IsValid() || !addr.IsGlobalUnicast() || addr.IsPrivate() || addr.IsLoopback() ||
 		addr.IsLinkLocalUnicast() || addr.IsMulticast() || addr.IsUnspecified() {
@@ -55,7 +66,7 @@ type hostPolicy struct {
 
 func (p hostPolicy) checkURL(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
-	if err != nil || !u.IsAbs() || u.Host == "" || u.User != nil {
+	if err != nil || !u.IsAbs() || u.Hostname() == "" || u.User != nil {
 		return nil, fmt.Errorf("not an absolute URL without userinfo: %w", ErrInsecureURL)
 	}
 	switch {
@@ -89,9 +100,13 @@ func (p hostPolicy) checkHost(ctx context.Context, host string) error {
 	return nil
 }
 
+// proxiedKey holds, in a request's context, an *atomic.Bool that the
+// transport's Proxy sets when it sends the request through a proxy.
+type proxiedKey struct{}
+
 // dialContext refuses a non-public address when it dials, after the name was
-// resolved, so DNS rebinding gains nothing. The proxies' addresses are dialled
-// unchecked: the operator names them.
+// resolved, so DNS rebinding gains nothing. A proxy's address is dialled
+// unchecked only for a request sent through a proxy: the operator names it.
 func (p hostPolicy) dialContext(timeout time.Duration, proxies map[string]bool) func(ctx context.Context, network, address string) (net.Conn, error) {
 	proxyDialer := &net.Dialer{Timeout: timeout}
 	dialer := &net.Dialer{Timeout: timeout}
@@ -111,7 +126,8 @@ func (p hostPolicy) dialContext(timeout time.Duration, proxies map[string]bool) 
 	}
 
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
-		if proxies[address] {
+		// net/http dials with a context that keeps the request's values.
+		if proxied, _ := ctx.Value(proxiedKey{}).(*atomic.Bool); proxied != nil && proxied.Load() && proxies[address] {
 			return proxyDialer.DialContext(ctx, network, address)
 		}
 
@@ -122,7 +138,7 @@ func (p hostPolicy) dialContext(timeout time.Duration, proxies map[string]bool) 
 // proxyAddresses are the host:port pairs the transport dials for the
 // configuration's proxies, read as httpproxy reads them.
 func proxyAddresses(config *httpproxy.Config) map[string]bool {
-	ports := map[string]string{"http": "80", "https": "443", "socks5": "1080"}
+	ports := map[string]string{"http": "80", "https": "443", "socks5": "1080", "socks5h": "1080"}
 	addresses := make(map[string]bool)
 	for _, raw := range []string{config.HTTPProxy, config.HTTPSProxy} {
 		if raw == "" {
@@ -155,6 +171,7 @@ func (g schemeGuard) RoundTrip(r *http.Request) (*http.Response, error) {
 	if _, err := g.policy.checkURL(r.URL.String()); err != nil {
 		return nil, err
 	}
+	r = r.WithContext(context.WithValue(r.Context(), proxiedKey{}, new(atomic.Bool)))
 	response, err := g.next.RoundTrip(r)
 	if err != nil {
 		return nil, err
@@ -166,25 +183,19 @@ func (g schemeGuard) RoundTrip(r *http.Request) (*http.Response, error) {
 
 		return nil, fmt.Errorf("%w: it answered %d", ErrUnavailable, response.StatusCode)
 	}
-	response.Body = &cappedBody{ReadCloser: response.Body}
+	// The body is read here, so a failed or oversized read is the request's
+	// error: the libraries' own reads keep only its text.
+	body, err := io.ReadAll(io.LimitReader(response.Body, limits.MaxResponseBytes+1))
+	_ = response.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > limits.MaxResponseBytes {
+		return nil, ErrResponseTooLarge
+	}
+	response.Body = io.NopCloser(bytes.NewReader(body))
 
 	return response, nil
-}
-
-// cappedBody fails a read past limits.MaxResponseBytes.
-type cappedBody struct {
-	io.ReadCloser
-	read int
-}
-
-func (b *cappedBody) Read(p []byte) (int, error) {
-	n, err := b.ReadCloser.Read(p)
-	b.read += n
-	if b.read > limits.MaxResponseBytes {
-		return n, ErrResponseTooLarge
-	}
-
-	return n, err
 }
 
 // newHTTPClient sends a request through the proxy the configuration names for
@@ -200,6 +211,9 @@ func newHTTPClient(policy hostPolicy, proxy *httpproxy.Config, timeout time.Dura
 			if err := policy.checkHost(r.Context(), r.URL.Hostname()); err != nil {
 				return nil, err
 			}
+			if proxied, _ := r.Context().Value(proxiedKey{}).(*atomic.Bool); proxied != nil {
+				proxied.Store(true)
+			}
 
 			return proxyURL, nil
 		},
@@ -211,9 +225,12 @@ func newHTTPClient(policy hostPolicy, proxy *httpproxy.Config, timeout time.Dura
 		ForceAttemptHTTP2:     true,
 	}
 
+	// No trace context goes to an identity provider: it is outside the platform.
+	traced := otelhttp.NewTransport(transport, otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()))
+
 	return &http.Client{
 		Timeout:   timeout,
-		Transport: schemeGuard{policy: policy, next: otelhttp.NewTransport(transport)},
+		Transport: schemeGuard{policy: policy, next: traced},
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},

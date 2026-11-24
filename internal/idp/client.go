@@ -99,11 +99,11 @@ func NewClient(config Config, tracer tracing.TracingInterface, monitor monitorin
 // ValidateIssuer accepts an absolute https URL with no userinfo, query or
 // fragment.
 func (c *Client) ValidateIssuer(raw string) error {
-	u, err := c.policy.checkURL(raw)
-	if err != nil {
+	if _, err := c.policy.checkURL(raw); err != nil {
 		return err
 	}
-	if u.RawQuery != "" || u.Fragment != "" {
+	// An empty query or fragment parses as none.
+	if strings.ContainsAny(raw, "?#") {
 		return errors.New("the issuer carries a query or a fragment")
 	}
 
@@ -260,13 +260,17 @@ func (c *Client) discover(ctx context.Context, issuer string, fresh bool) (*prov
 
 	p, err := c.fetchProvider(ctx, issuer)
 	if err != nil {
-		if cached == nil || fresh || errors.Is(err, ErrMisconfigured) {
+		// A caller that gave up says nothing about the issuer.
+		if cached == nil || fresh || ctx.Err() != nil || errors.Is(err, ErrMisconfigured) {
 			return nil, err
 		}
 		p = &provider{oidc: cached.oidc, meta: cached.meta, at: c.now()}
 	}
 	c.mu.Lock()
-	c.providers[issuer] = p
+	// A failed refresh does not overwrite what another one wrote meanwhile.
+	if err == nil || c.providers[issuer] == cached {
+		c.providers[issuer] = p
+	}
 	// A provider nobody asked for during a DiscoveryTTL after it expired is
 	// dropped, so the issuers of deleted connections do not stay.
 	for kept, old := range c.providers {
@@ -310,11 +314,17 @@ func (c *Client) fetchProvider(ctx context.Context, issuer string) (*provider, e
 // be fetched. go-oidc reports both as one error and drops the cause from its
 // chain, so its text is all there is to go by.
 func verifyKind(err error) error {
-	if strings.Contains(err.Error(), "fetching keys") {
-		return ErrUnavailable
+	text := err.Error()
+	switch {
+	case !strings.Contains(text, "fetching keys"):
+		return ErrInvalidToken
+	// Keys this client's own rules refused are the provider's to fix.
+	case strings.Contains(text, ErrForbiddenAddress.Error()) || strings.Contains(text, ErrInsecureURL.Error()) ||
+		strings.Contains(text, ErrResponseTooLarge.Error()):
+		return ErrMisconfigured
 	}
 
-	return ErrInvalidToken
+	return ErrUnavailable
 }
 
 func exchangeError(err error) error {
@@ -351,7 +361,8 @@ func checkClaims(subject string, payload []byte, clientID, nonce string) (*Claim
 	}
 
 	audiences := audience(claims["aud"])
-	azp, hasAZP := claims["azp"].(string)
+	// Of any JSON type: only the client id as a string matches.
+	azp, hasAZP := claims["azp"]
 	if (len(audiences) > 1 && !hasAZP) || (hasAZP && azp != clientID) {
 		return nil, fmt.Errorf("%w: azp", ErrInvalidToken)
 	}

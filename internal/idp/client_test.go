@@ -388,6 +388,8 @@ func TestClient_ValidateIssuer(t *testing.T) {
 		{name: "userinfo", issuer: "https://user:pw@idp.example", expectErr: true},
 		{name: "query", issuer: "https://idp.example/?a=b", expectErr: true},
 		{name: "fragment", issuer: "https://idp.example/#fragment", expectErr: true},
+		{name: "empty query", issuer: "https://idp.example/?", expectErr: true},
+		{name: "empty fragment", issuer: "https://idp.example/#", expectErr: true},
 		{name: "no scheme", issuer: "idp.example", expectErr: true},
 		{name: "scheme-relative", issuer: "//idp.example", expectErr: true},
 		{name: "no host", issuer: "https://", expectErr: true},
@@ -706,19 +708,22 @@ func TestClient_Exchange_Failures(t *testing.T) {
 		name        string
 		status      int
 		code        string
+		body        map[string]any
 		expectedErr error
 	}{
 		{name: "4xx", status: http.StatusBadRequest, code: "invalid_grant", expectedErr: ErrRejected},
 		{name: "401", status: http.StatusUnauthorized, expectedErr: ErrCredentials},
 		{name: "invalid_client", status: http.StatusBadRequest, code: "invalid_client", expectedErr: ErrCredentials},
 		{name: "unauthorized_client", status: http.StatusBadRequest, code: "unauthorized_client", expectedErr: ErrCredentials},
+		{name: "token response over the limit", status: http.StatusOK,
+			body: map[string]any{"padding": strings.Repeat("x", limits.MaxResponseBytes)}, expectedErr: ErrMisconfigured},
 		{name: "5xx", status: http.StatusBadGateway, code: "server_error", expectedErr: ErrUnavailable},
 		{name: "5xx naming the client", status: http.StatusServiceUnavailable, code: "invalid_client", expectedErr: ErrUnavailable},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			f.set(func(f *fakeIdP) { f.tokenCode, f.tokenError = tc.status, tc.code })
+			f.set(func(f *fakeIdP) { f.tokenCode, f.tokenError, f.tokenBody = tc.status, tc.code, tc.body })
 
 			if err := exchange(); !errors.Is(err, tc.expectedErr) {
 				t.Errorf("expected %v, got %v", tc.expectedErr, err)
@@ -778,6 +783,23 @@ func TestClient_Exchange_KeysUnavailable(t *testing.T) {
 	if !errors.Is(err, ErrUnavailable) || errors.Is(err, ErrInvalidToken) {
 		t.Errorf("expected %v, got %v", ErrUnavailable, err)
 	}
+
+	// Keys this client's own rules refuse are a misconfiguration.
+	t.Run("jwks_uri over http", func(t *testing.T) {
+		const issuer = "https://idp.example"
+		f := ready(t)
+		f.set(func(f *fakeIdP) {
+			f.discovery = map[string]any{"issuer": issuer, "authorization_endpoint": issuer + "/authorize",
+				"token_endpoint": issuer + "/token", "jwks_uri": "http://idp.example/jwks"}
+			f.claims["iss"] = issuer
+		})
+		connection := &types.Connection{ID: testConnection, Issuer: issuer, ClientID: "client"}
+
+		_, err := production(f.mux).Exchange(context.Background(), connection, "secret", &AuthRequest{Nonce: "n"}, "code")
+		if !errors.Is(err, ErrMisconfigured) || errors.Is(err, ErrUnavailable) {
+			t.Errorf("expected %v, got %v", ErrMisconfigured, err)
+		}
+	})
 }
 
 // Token and key endpoints on another origin than the issuer are used as the
@@ -1173,8 +1195,8 @@ func TestClient_Timeout_NoAnswer(t *testing.T) {
 		defer cancel()
 
 		started := time.Now()
-		if _, err := newTestClient(Config{Dev: true}).Exchange(ctx, f.connection(), "s", &AuthRequest{Nonce: "n"}, "code"); err == nil {
-			t.Error("expected error but got none")
+		if _, err := newTestClient(Config{Dev: true}).Exchange(ctx, f.connection(), "s", &AuthRequest{Nonce: "n"}, "code"); !errors.Is(err, ErrUnavailable) {
+			t.Errorf("expected %v, got %v", ErrUnavailable, err)
 		}
 		within(t, started)
 	})
@@ -1231,6 +1253,8 @@ func TestCheckClaims(t *testing.T) {
 			mutate: func(c map[string]any) { c["aud"] = []string{"client", "x"} }, expectErr: true},
 		{name: "azp for another client", nonce: "n",
 			mutate: func(c map[string]any) { c["azp"] = "other" }, expectErr: true},
+		{name: "azp not a string", nonce: "n",
+			mutate: func(c map[string]any) { c["azp"] = []string{"client"} }, expectErr: true},
 		{name: "iat ahead", nonce: "n",
 			mutate: func(c map[string]any) { c["iat"] = now.Add(2 * time.Minute).Unix() }},
 		{name: "no iat", nonce: "n", mutate: func(c map[string]any) { delete(c, "iat") }},

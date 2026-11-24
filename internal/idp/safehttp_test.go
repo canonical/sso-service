@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -50,6 +51,8 @@ func TestPublicUnicast(t *testing.T) {
 		{name: "mapped loopback", addr: "::ffff:127.0.0.1"},
 		{name: "mapped carrier-grade NAT", addr: "::ffff:100.64.0.1"},
 		{name: "mapped public", addr: "::ffff:8.8.8.8", expected: true},
+		// Linux connects the unspecified address as loopback.
+		{name: "zoned unspecified", addr: "::%1"},
 	}
 
 	for _, tc := range testCases {
@@ -136,6 +139,7 @@ func TestHostPolicy_CheckURL(t *testing.T) {
 		{name: "userinfo", url: "https://user:pw@idp.example/token", expectErr: true},
 		{name: "relative", url: "/token", expectErr: true},
 		{name: "no host", url: "https:///token", expectErr: true},
+		{name: "port and no host", url: "https://:443/token", expectErr: true},
 		{name: "dev http", dev: true, url: "http://dex:5556/token"},
 		{name: "dev userinfo", dev: true, url: "http://user:pw@dex:5556/token", expectErr: true},
 		{name: "dev ftp", dev: true, url: "ftp://dex/token", expectErr: true},
@@ -208,6 +212,10 @@ func TestSchemeGuard_RoundTrip(t *testing.T) {
 		{name: "dev http", dev: true, url: "http://dex:5556/token", status: http.StatusOK, body: "ok", expectedReached: true},
 		{name: "4xx", url: "https://idp.example/token", status: http.StatusBadRequest, body: "no", expectedReached: true},
 		{name: "5xx", url: "https://idp.example/token", status: http.StatusBadGateway, expectedErr: ErrUnavailable, expectedReached: true},
+		{name: "body at the limit", url: "https://idp.example/token", status: http.StatusOK,
+			body: strings.Repeat("x", limits.MaxResponseBytes), expectedReached: true},
+		{name: "body over the limit", url: "https://idp.example/token", status: http.StatusOK,
+			body: strings.Repeat("x", limits.MaxResponseBytes+1), expectedErr: ErrResponseTooLarge, expectedReached: true},
 	}
 
 	for _, tc := range testCases {
@@ -247,28 +255,6 @@ func TestSchemeGuard_RoundTrip(t *testing.T) {
 	})
 }
 
-func TestCappedBody_Read(t *testing.T) {
-	testCases := []struct {
-		name        string
-		size        int
-		expectedErr error
-	}{
-		{name: "at the limit", size: limits.MaxResponseBytes},
-		{name: "over the limit", size: limits.MaxResponseBytes + 1, expectedErr: ErrResponseTooLarge},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			body := &cappedBody{ReadCloser: io.NopCloser(strings.NewReader(strings.Repeat("x", tc.size)))}
-
-			_, err := io.ReadAll(body)
-			if !errors.Is(err, tc.expectedErr) {
-				t.Errorf("expected %v, got %v", tc.expectedErr, err)
-			}
-		})
-	}
-}
-
 func TestNewHTTPClient(t *testing.T) {
 	client := newHTTPClient(hostPolicy{}, &httpproxy.Config{}, 3*time.Second)
 
@@ -284,7 +270,8 @@ func TestNewHTTPClient(t *testing.T) {
 }
 
 // Through a proxy the dial check sees only the proxy, so the request's host is
-// checked before the request goes there.
+// checked before the request goes there. The proxy's address is dialled
+// unchecked only as the proxy.
 func TestNewHTTPClient_Proxy(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -294,24 +281,36 @@ func TestNewHTTPClient_Proxy(t *testing.T) {
 	}{
 		{name: "public host", url: "https://8.8.8.8/token", expected: "8.8.8.8:443"},
 		{name: "private host", url: "https://10.0.0.1/token", expectedErr: ErrForbiddenAddress},
+		// A loopback host is never sent through the proxy.
+		{name: "the proxy's address, directly", url: "https://{proxy}/token", expectedErr: ErrForbiddenAddress},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var connected string
-			proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var accepted atomic.Int32
+			proxy := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				connected = r.Host
 				w.WriteHeader(http.StatusBadGateway)
 			}))
+			proxy.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+				if state == http.StateNew {
+					accepted.Add(1)
+				}
+			}
+			proxy.Start()
 			defer proxy.Close()
 
 			client := newHTTPClient(hostPolicy{}, &httpproxy.Config{HTTPSProxy: proxy.URL}, 3*time.Second)
-			_, err := client.Get(tc.url)
+			_, err := client.Get(strings.ReplaceAll(tc.url, "{proxy}", proxy.Listener.Addr().String()))
 			if tc.expectedErr != nil && !errors.Is(err, tc.expectedErr) {
 				t.Errorf("expected %v, got %v", tc.expectedErr, err)
 			}
 			if connected != tc.expected {
 				t.Errorf("expected the proxy asked for %q, got %q", tc.expected, connected)
+			}
+			if tc.expected == "" && accepted.Load() != 0 {
+				t.Errorf("expected no connection to the proxy, got %d", accepted.Load())
 			}
 		})
 	}
