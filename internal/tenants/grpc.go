@@ -13,12 +13,14 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/canonical/sso-service/internal/limits"
 )
@@ -62,10 +64,11 @@ func TokenSource(c Credentials) oauth2.TokenSource {
 		ClientSecret: c.ClientSecret,
 		TokenURL:     c.TokenURL,
 		Scopes:       c.Scopes,
+		AuthStyle:    oauth2.AuthStyleInHeader,
 	}
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, &http.Client{Timeout: limits.TokenTimeout})
 
-	return oauth2.ReuseTokenSource(nil, config.TokenSource(ctx))
+	return config.TokenSource(ctx)
 }
 
 // NewGRPCConn creates a gRPC client connection to address, configured with
@@ -112,12 +115,21 @@ func DialOptions(source oauth2.TokenSource) []grpc.DialOption {
 }
 
 // bearerInterceptor is used instead of gRPC's per-RPC credentials, which
-// refuse to send a token over a connection without TLS.
+// refuse to send a token over a connection without TLS. The calls waiting for
+// a token share one fetch, and each waits only until its own deadline.
 func bearerInterceptor(source oauth2.TokenSource) grpc.UnaryClientInterceptor {
+	var fetches singleflight.Group
+
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		token, err := source.Token()
-		if err != nil {
-			return fmt.Errorf("failed to get a service token: %w", err)
+		var token *oauth2.Token
+		select {
+		case result := <-fetches.DoChan("token", func() (any, error) { return source.Token() }):
+			if result.Err != nil {
+				return fmt.Errorf("failed to get a service token: %w", result.Err)
+			}
+			token = result.Val.(*oauth2.Token)
+		case <-ctx.Done():
+			return status.FromContextError(ctx.Err()).Err()
 		}
 		ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token.AccessToken)
 

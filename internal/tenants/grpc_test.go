@@ -17,11 +17,21 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/canonical/sso-service/internal/limits"
 )
 
 type failingSource struct{}
 
 func (failingSource) Token() (*oauth2.Token, error) { return nil, errors.New("hydra down") }
+
+// blockingSource answers once it is closed.
+type blockingSource chan struct{}
+
+func (s blockingSource) Token() (*oauth2.Token, error) {
+	<-s
+	return nil, errors.New("hydra down")
+}
 
 func TestTokenSource(t *testing.T) {
 	requests := 0
@@ -90,6 +100,30 @@ func TestDialOptions_Token(t *testing.T) {
 
 		if _, err := dial(t, f, failingSource{}, callTimeout).GetSignInContext(context.Background(), "t", "", "i"); !errors.Is(err, ErrUnavailable) {
 			t.Errorf("expected %v, got %v", ErrUnavailable, err)
+		}
+		if f.reached() != 0 {
+			t.Errorf("expected no call to tenant-service, it saw %d", f.reached())
+		}
+	})
+
+	t.Run("no wait for a token past the call's deadline", func(t *testing.T) {
+		f := &fakeTenantService{context: &v0tenant.SignInContext{}}
+		// The fetch ends as late as a token request can.
+		source := make(blockingSource)
+		release := time.AfterFunc(limits.TokenTimeout, func() { close(source) })
+		t.Cleanup(func() {
+			if release.Stop() {
+				close(source)
+			}
+		})
+		client := dial(t, f, source, 300*time.Millisecond)
+
+		started := time.Now()
+		if _, err := client.GetSignInContext(context.Background(), "t", "", "i"); !errors.Is(err, ErrUnavailable) {
+			t.Errorf("expected %v, got %v", ErrUnavailable, err)
+		}
+		if took := time.Since(started); took > time.Second {
+			t.Errorf("expected the call to end at its deadline, took %s", took)
 		}
 		if f.reached() != 0 {
 			t.Errorf("expected no call to tenant-service, it saw %d", f.reached())
