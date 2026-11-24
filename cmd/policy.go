@@ -24,7 +24,7 @@ var policyCmd = &cobra.Command{
 }
 
 var getPolicyCmd = &cobra.Command{
-	Use:   "get [tenant-id]",
+	Use:   "get <tenant-id>",
 	Short: "Get a tenant's SSO policy",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +46,7 @@ var getPolicyCmd = &cobra.Command{
 }
 
 var setPolicyCmd = &cobra.Command{
-	Use:   "set [tenant-id]",
+	Use:   "set <tenant-id>",
 	Short: "Replace a tenant's SSO policy: its enforcement, bindings and auto-join",
 	Long: "Replace a tenant's SSO policy. A binding is a connection id, followed by \":inactive\" for a\n" +
 		"connection the tenant keeps but does not offer; a binding left out is removed.",
@@ -87,7 +87,7 @@ var domainsCmd = &cobra.Command{
 }
 
 var getDomainsCmd = &cobra.Command{
-	Use:   "get [tenant-id]",
+	Use:   "get <tenant-id>",
 	Short: "Get a tenant's email domains",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -109,7 +109,7 @@ var getDomainsCmd = &cobra.Command{
 }
 
 var setDomainsCmd = &cobra.Command{
-	Use:   "set [tenant-id] [domain...]",
+	Use:   "set <tenant-id> [domain...]",
 	Short: "Replace a tenant's email domains; none given removes them all",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

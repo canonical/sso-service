@@ -33,11 +33,14 @@ func adminClients() (func() error, v0.SSOTenantAdminServiceClient, v0.SSOPlatfor
 }
 
 func authenticatedContext(ctx context.Context) context.Context {
-	if authToken == "" {
+	token := strings.TrimSpace(authToken)
+	if scheme, rest, ok := strings.Cut(token, " "); ok && strings.EqualFold(scheme, "Bearer") {
+		token = strings.TrimSpace(rest)
+	}
+	if token == "" {
 		return ctx
 	}
 
-	token := strings.TrimPrefix(authToken, "Bearer ")
 	return metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))
 }
 

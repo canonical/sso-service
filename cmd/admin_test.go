@@ -4,10 +4,12 @@
 package cmd
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
 	tenantv0 "github.com/canonical/identity-platform-api/v0/tenant"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestParseBindings(t *testing.T) {
@@ -66,6 +68,31 @@ func TestConnectionUpdate(t *testing.T) {
 			}
 			if update.GetLabel() != tt.label || update.GetClientSecret() != tt.secret {
 				t.Errorf("update = %v", update)
+			}
+		})
+	}
+}
+
+func TestAuthenticatedContext(t *testing.T) {
+	tests := []struct {
+		name, token string
+		want        []string
+	}{
+		{name: "a bare token", token: "abc", want: []string{"Bearer abc"}},
+		{name: "the scheme in any case", token: "bearer abc", want: []string{"Bearer abc"}},
+		{name: "whitespace around it", token: " Bearer abc\n", want: []string{"Bearer abc"}},
+		{name: "no token", token: " "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			previous := authToken
+			t.Cleanup(func() { authToken = previous })
+			authToken = tt.token
+
+			md, _ := metadata.FromOutgoingContext(authenticatedContext(context.Background()))
+			if got := md.Get("authorization"); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("authorization = %q, want %q", got, tt.want)
 			}
 		})
 	}

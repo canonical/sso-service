@@ -67,7 +67,7 @@ var listConnectionsCmd = &cobra.Command{
 }
 
 var getConnectionCmd = &cobra.Command{
-	Use:   "get [tenant-id] [connection-id]",
+	Use:   "get <tenant-id> <connection-id>",
 	Short: "Get a connection",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -90,7 +90,7 @@ var getConnectionCmd = &cobra.Command{
 }
 
 var createConnectionCmd = &cobra.Command{
-	Use:   "create [tenant-id]",
+	Use:   "create <tenant-id>",
 	Short: "Create a connection",
 	Long: "Create a connection. The client secret is read from --client-secret or, when the flag is not set,\n" +
 		"from the " + clientSecretEnv + " environment variable.",
@@ -118,7 +118,7 @@ var createConnectionCmd = &cobra.Command{
 }
 
 var updateConnectionCmd = &cobra.Command{
-	Use:   "update [tenant-id] [connection-id]",
+	Use:   "update <tenant-id> <connection-id>",
 	Short: "Change a connection's label or client secret",
 	Long: "Change a connection's label or client secret: only what is given changes. The client secret is read\n" +
 		"from --client-secret or, when the flag is not set, from the " + clientSecretEnv + " environment variable.",
@@ -150,7 +150,7 @@ var updateConnectionCmd = &cobra.Command{
 }
 
 var deleteConnectionCmd = &cobra.Command{
-	Use:   "delete [connection-id]",
+	Use:   "delete <connection-id>",
 	Short: "Delete a connection, whichever tenant owns it",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -160,20 +160,19 @@ var deleteConnectionCmd = &cobra.Command{
 		}
 		defer closeConn()
 
-		_, err = platformAdmin.DeleteAnyConnection(authenticatedContext(cmd.Context()), &v0.DeleteAnyConnectionRequest{
+		resp, err := platformAdmin.DeleteAnyConnection(authenticatedContext(cmd.Context()), &v0.DeleteAnyConnectionRequest{
 			ConnectionId: args[0],
 		})
 		if err != nil {
 			return fmt.Errorf("failed to delete connection: %w", err)
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Connection deleted: %s\n", args[0])
-		return nil
+		return printMessage(cmd, resp)
 	},
 }
 
 var testConnectionCmd = &cobra.Command{
-	Use:   "test [tenant-id] [connection-id]",
+	Use:   "test <tenant-id> <connection-id>",
 	Short: "Start a test sign-in and print the URL to open in a browser",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
