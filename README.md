@@ -73,7 +73,7 @@ The service is configured using environment variables.
 | :--- | :--- | :--- | :--- |
 | `OTEL_GRPC_ENDPOINT` | OpenTelemetry gRPC Collector Endpoint | | No |
 | `OTEL_HTTP_ENDPOINT` | OpenTelemetry HTTP Collector Endpoint | | No |
-| `TRACING_ENABLED` | Enable OpenTelemetry Tracing. When the exporter cannot be created, the service logs the error and runs without tracing | `true` | No |
+| `TRACING_ENABLED` | Enable OpenTelemetry Tracing. With no endpoint set, or when the exporter cannot be created, the service logs it and runs without tracing. The export is plaintext unless the `OTEL_EXPORTER_OTLP_*` TLS settings are set | `true` | No |
 | `LOG_LEVEL` | Logging Level | `error` | No |
 | `DEV` | Allow identity providers over plain http and at private addresses, and a `PUBLIC_URL` over plain http. Never in production | `false` | No |
 | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | The proxy for all outbound requests, identity providers included, and the hosts reached without it. `NO_PROXY` must name the hosts of Kratos, `hydra-sso` and the Tenant Service | | No |
@@ -81,14 +81,14 @@ The service is configured using environment variables.
 | `PORT` | HTTP Server Port | `8080` | No |
 | `GRPC_PORT` | gRPC Server Port | `50051` | No |
 | `DSN` | PostgreSQL Connection String | | Yes |
-| `DB_MAX_CONNS` | Maximum open DB connections | `10` | No |
-| `DB_MIN_CONNS` | Minimum open DB connections | `1` | No |
+| `DB_MAX_CONNS` | Maximum open DB connections, at least 1 | `10` | No |
+| `DB_MIN_CONNS` | Minimum open DB connections, at most `DB_MAX_CONNS` | `1` | No |
 | `DB_MAX_CONN_LIFETIME` | Maximum amount of time a connection may be reused | `1h` | No |
 | `DB_MAX_CONN_IDLE_TIME` | Maximum amount of time a connection may be idle | `30m` | No |
 | `HYDRA_SSO_ADMIN_URL` | Admin API URL of `hydra-sso` | | Yes |
 | `KRATOS_ADMIN_URL` | Ory Kratos Admin API URL | | Yes |
 | `TENANT_SERVICE_GRPC_ADDRESS` | Tenant Service gRPC address | | Yes |
-| `TENANT_SERVICE_GRPC_TIMEOUT` | Maximum amount of time a call to the Tenant Service may take | `5s` | No |
+| `TENANT_SERVICE_GRPC_TIMEOUT` | Maximum amount of time a call to the Tenant Service may take, above zero | `5s` | No |
 | `TENANT_SERVICE_TLS_ENABLED` | Use TLS for the connection to the Tenant Service | `false` | No |
 | `AUTHENTICATION_ENABLED` | Enable JWT Authentication | `true` | No |
 | `AUTHENTICATION_ISSUER` | OIDC Issuer URL for JWT validation | | Yes (if auth enabled) |

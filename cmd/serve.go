@@ -285,10 +285,10 @@ func serve() error {
 	logger.Infof("Starting HTTP server on port %v", specs.Port)
 	logger.Infof("Starting gRPC server on port %v", specs.GRPCPort)
 
-	return run(logger, srv, grpcServer, lis)
+	return run(logger, tracer, srv, grpcServer, lis)
 }
 
-func run(logger *logging.Logger, srv *http.Server, grpcServer *grpc.Server, lis net.Listener) error {
+func run(logger *logging.Logger, tracer *tracing.Tracer, srv *http.Server, grpcServer *grpc.Server, lis net.Listener) error {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	failures := make(chan error, 2)
@@ -328,6 +328,9 @@ func run(logger *logging.Logger, srv *http.Server, grpcServer *grpc.Server, lis 
 	case <-drained:
 	case <-ctx.Done():
 		grpcServer.Stop()
+	}
+	if err := tracer.Shutdown(ctx); err != nil {
+		logger.Errorf("failed to export the last spans: %v", err)
 	}
 
 	return errors.Join(serverError, shutdownError)
