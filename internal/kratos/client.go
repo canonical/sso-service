@@ -162,6 +162,11 @@ func (c *Client) ListByIdentifier(ctx context.Context, identifier string) ([]Ide
 	ctx, span := c.tracer.Start(ctx, "kratos.Client.ListByIdentifier")
 	defer span.End()
 
+	// Kratos lists every identity for an empty identifier.
+	if strings.TrimSpace(identifier) == "" {
+		return nil, recordError(span, errors.New("failed to list identities: no identifier"))
+	}
+
 	identities, response, err := c.api.ListIdentities(ctx).CredentialsIdentifier(identifier).Execute()
 	if err != nil {
 		return nil, recordError(span, fmt.Errorf("failed to list identities: %w", responseError(response, err)))
@@ -225,14 +230,13 @@ func responseError(response *http.Response, err error) error {
 		return ErrNotFound
 	}
 
+	// Only an error status's body is Kratos's error: a 2xx body that did not
+	// decode is an identity, credentials included.
 	var apiError *client.GenericOpenAPIError
 	body := err.Error()
-	if errors.As(err, &apiError) {
+	if errors.As(err, &apiError) && response.StatusCode >= 300 {
 		body = string(apiError.Body())
 	}
-	if len(body) > 300 {
-		body = body[:300]
-	}
 
-	return fmt.Errorf("%d %s", response.StatusCode, body)
+	return fmt.Errorf("%d %.300q", response.StatusCode, body)
 }

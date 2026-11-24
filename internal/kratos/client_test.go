@@ -100,6 +100,18 @@ func TestClient_GetIdentity(t *testing.T) {
 		}
 	})
 
+	t.Run("undecodable: the error does not carry the body", func(t *testing.T) {
+		server, _ := newTestServer(t, http.StatusOK, `{"id":"i-1","credentials":{"password":{"config":{"hashed_password":"$2a$10$h"}}}}`)
+
+		_, err := newTestClient(server.URL).GetIdentity(context.Background(), "i-1", "password")
+		if err == nil {
+			t.Fatal("expected error but got none")
+		}
+		if strings.Contains(err.Error(), "hashed_password") {
+			t.Errorf("expected no body in the error, got %v", err)
+		}
+	})
+
 	t.Run("unreachable", func(t *testing.T) {
 		server, _ := newTestServer(t, http.StatusOK, identityJSON)
 		server.Close()
@@ -132,6 +144,18 @@ func TestClient_ListByIdentifier(t *testing.T) {
 		found, err := newTestClient(server.URL).ListByIdentifier(context.Background(), "nobody@b.example")
 		if err != nil || len(found) != 0 {
 			t.Errorf("expected no identities, got %+v %v", found, err)
+		}
+	})
+
+	t.Run("no identifier", func(t *testing.T) {
+		server, requests := newTestServer(t, http.StatusOK, "["+identityJSON+"]")
+
+		found, err := newTestClient(server.URL).ListByIdentifier(context.Background(), " ")
+		if err == nil || found != nil {
+			t.Errorf("expected an error and no identities, got %+v %v", found, err)
+		}
+		if len(*requests) != 0 {
+			t.Errorf("expected no request to Kratos, got %v", *requests)
 		}
 	})
 
