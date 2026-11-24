@@ -59,7 +59,7 @@ The system SHALL read these environment variables at start:
 | `ENVELOPE_KEY` | required | the encryption key, 32 bytes in base64 (see `secrets`) |
 | `DEV` | `false` | allow identity providers over plain `http` and at non-public addresses, and a `PUBLIC_URL` over plain `http` |
 | `LOG_LEVEL` | `error` | the level of the service's logs (see `observability`) |
-| `TRACING_ENABLED` | `true` | OpenTelemetry tracing. When the service cannot create the exporter of the traces, the service logs the error and runs without tracing (see `observability`) |
+| `TRACING_ENABLED` | `true` | OpenTelemetry tracing. When no OTLP endpoint is set, or when the service cannot create the exporter of the traces, the service logs it and runs without tracing. The export is plaintext unless the `OTEL_EXPORTER_OTLP_*` TLS settings are set (see `observability`) |
 | `OTEL_GRPC_ENDPOINT`, `OTEL_HTTP_ENDPOINT` | none | where the service sends traces |
 | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | none | the proxy for the requests of the service, and the hosts that the service reaches without it. They apply to all the requests: those to Kratos, hydra-sso and the tenant service too. Thus `NO_PROXY` must name the hosts of those services (see `identity-provider-requests`) |
 
@@ -70,6 +70,9 @@ The system SHALL refuse to start when one of these conditions is true:
 - `PUBLIC_URL` is not `https` while `DEV` is off.
 - `PUBLIC_URL` has a query or a fragment.
 - `GRPC_PORT` equals `PORT`.
+- `DB_MAX_CONNS` is less than 1.
+- `DB_MIN_CONNS` is less than 0, or more than `DB_MAX_CONNS`.
+- `TENANT_SERVICE_GRPC_TIMEOUT` is not more than zero.
 - The envelope key is not usable.
 - The system cannot reach the database.
 - Authentication is enabled, `AUTHENTICATION_JWKS_URL` is not set, and the system cannot read the issuer's discovery document.

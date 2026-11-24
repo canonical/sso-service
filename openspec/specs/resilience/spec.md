@@ -48,6 +48,8 @@ The system SHALL bound every wait as this table shows:
 
 The database bounds are fixed in the code. They are not settings. The 10 seconds of a transaction include the call to the Tenant Service that the service makes inside it. The service holds no database lock across a call to an identity provider.
 
+The calls to the Tenant Service that need the service's own access token at the same time SHALL share one fetch of the token. Each call SHALL wait for that fetch only until its own deadline. Thus a slow token endpoint does not keep a call after its deadline.
+
 #### Scenario: A lock held by another request
 - **WHEN** a policy write needs a connection row that another transaction holds for more than 2 seconds
 - **THEN** the caller gets `ABORTED`

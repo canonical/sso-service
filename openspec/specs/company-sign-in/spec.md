@@ -54,7 +54,7 @@ The identity provider can ignore `prompt=login` and `max_age`. The system SHALL 
 
 | when | answer |
 |---|---|
-| there is no `login_challenge`, or hydra-sso does not know it | a page, HTTP 400 |
+| there is no `login_challenge`, or hydra-sso does not know it, or the challenge is expired | a page, HTTP 400 |
 | the system cannot reach hydra-sso | a page, HTTP 500 |
 | the `login_hint` holds no ticket that opens, or the ticket is expired | the system rejects the login request: `expired` |
 | the ticket's connection is gone or not tested, the system cannot read the database, or the system cannot use the identity provider's discovery document | the system rejects the login request: `unavailable` |
@@ -131,7 +131,7 @@ On `GET /callback/{tenant_id}` with a `state` that is not the `state` of a test 
 | 1 | the answer has a `state` | page, HTTP 400 |
 | 2 | the browser sent the binding cookie of this `state` | page, HTTP 400: already completed, expired, replaced by a newer sign-in, or not started in this browser |
 | 3 | the cookie opens and holds this `state` | page, HTTP 400: started in another browser |
-| 4 | hydra-sso still knows the cookie's login challenge | page, HTTP 400 (HTTP 500 when the system cannot reach hydra-sso) |
+| 4 | hydra-sso still knows the cookie's login challenge, and the challenge is not expired | page, HTTP 400 (HTTP 500 when the system cannot reach hydra-sso) |
 | 5 | the ticket in the `login_hint` of the login request opens | `expired` |
 | 6 | neither the cookie nor the ticket is expired | `expired` |
 | 7 | the database answers, and the ticket's connection exists | `unavailable` |
@@ -195,7 +195,7 @@ The system SHALL NOT write a link, an account or a membership. After the system 
 ### Requirement: Accept the login and the consent at hydra-sso
 The system SHALL accept hydra-sso's login request with the subject `<connection id>:<subject>`, not remembered, and with a context. The context holds the ticket's address. The context holds `email_verified` only when the identity provider said it. Then the system redirects the browser (303) to hydra-sso, with the receipt cookie.
 
-On `GET /consent?consent_challenge=<challenge>` the system SHALL accept the consent request with the scopes and audiences that the request asks for, not remembered. The system SHALL put `email` from that context into the id_token, and also `email_verified` when it is present. Then the system redirects the browser (302). Thus Kratos receives an id_token whose `sub` is `<connection id>:<subject>`. Because nothing is remembered, every company sign-in goes to the identity provider. The system answers a missing or unknown `consent_challenge` with a page, HTTP 400.
+On `GET /consent?consent_challenge=<challenge>` the system SHALL accept the consent request with the scopes and audiences that the request asks for, not remembered. The system SHALL put `email` from that context into the id_token, and also `email_verified` when it is present. Then the system redirects the browser (302). Thus Kratos receives an id_token whose `sub` is `<connection id>:<subject>`. Because nothing is remembered, every company sign-in goes to the identity provider. The system answers a missing, unknown or expired `consent_challenge` with a page, HTTP 400.
 
 #### Scenario: The provider says nothing about the address
 - **WHEN** the identity provider's id_token has no `email_verified`

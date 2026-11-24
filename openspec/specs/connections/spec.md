@@ -40,7 +40,7 @@ After request validation, the system SHALL check for these cases in this order a
 |---|---|---|
 | the tenant service does not know the tenant | `NOT_FOUND` (404) | `no such tenant` |
 | the tenant is a personal tenant | `FAILED_PRECONDITION` (400) | `PERSONAL_TENANT: …` |
-| the issuer is not an absolute `https` URL, or has userinfo, a query or a fragment | `INVALID_ARGUMENT` (400) | `invalid issuer: …` |
+| the issuer is not an absolute `https` URL, or has userinfo, a query or a fragment, also an empty one (`?` or `#`) | `INVALID_ARGUMENT` (400) | `invalid issuer: …` |
 | the tenant already owns 5 connections | `FAILED_PRECONDITION` (400) | `CONNECTION_LIMIT: a tenant owns at most 5 connections` |
 
 The limit is part of the statement that inserts the row, and the system does not serialise creates. Thus creates of one tenant that run at the same moment can pass the limit together.
