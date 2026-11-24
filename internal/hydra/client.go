@@ -6,8 +6,10 @@ package hydra
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	client "github.com/ory/hydra-client-go/v26"
@@ -158,13 +160,29 @@ func convert(from, to any) error {
 }
 
 // responseError reads a challenge that is unknown, used or expired as
-// ErrNotFound.
+// ErrNotFound. Hydra answers 401 request_unauthorized for an expired one.
 func responseError(response *http.Response, err error) error {
+	// A transport error names the URL, and with it the challenge: keep the
+	// cause only.
+	var transport *url.Error
+	if errors.As(err, &transport) {
+		err = transport.Err
+	}
 	if response == nil {
 		return err
 	}
 	if response.StatusCode == http.StatusNotFound || response.StatusCode == http.StatusGone {
 		return ErrNotFound
+	}
+
+	var apiError *client.GenericOpenAPIError
+	if errors.As(err, &apiError) && response.StatusCode >= 300 {
+		if model, ok := apiError.Model().(client.ErrorOAuth2); ok &&
+			response.StatusCode == http.StatusUnauthorized && model.GetError() == "request_unauthorized" {
+			return ErrNotFound
+		}
+
+		return fmt.Errorf("%d %.300q", response.StatusCode, apiError.Body())
 	}
 
 	return fmt.Errorf("%d: %w", response.StatusCode, err)

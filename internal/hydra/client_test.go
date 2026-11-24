@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/canonical/sso-service/internal/logging"
@@ -96,6 +97,23 @@ func TestClient_GetLoginRequest(t *testing.T) {
 		})
 	}
 
+	// hydra-sso answers 401 request_unauthorized for a challenge that expired.
+	t.Run("expired", func(t *testing.T) {
+		f := &fakeAdmin{status: http.StatusUnauthorized, answer: map[string]any{"error": "request_unauthorized"}}
+
+		if _, err := newClient(t, f).GetLoginRequest(context.Background(), "lc"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("expected %v, got %v", ErrNotFound, err)
+		}
+	})
+
+	t.Run("another 401", func(t *testing.T) {
+		f := &fakeAdmin{status: http.StatusUnauthorized, answer: map[string]any{"error": "unauthorized"}}
+
+		if _, err := newClient(t, f).GetLoginRequest(context.Background(), "lc"); err == nil || errors.Is(err, ErrNotFound) {
+			t.Errorf("expected an error that is not %v, got %v", ErrNotFound, err)
+		}
+	})
+
 	t.Run("server error", func(t *testing.T) {
 		f := &fakeAdmin{status: http.StatusInternalServerError, answer: map[string]any{"error": "server_error"}}
 
@@ -104,12 +122,16 @@ func TestClient_GetLoginRequest(t *testing.T) {
 		}
 	})
 
-	t.Run("unreachable", func(t *testing.T) {
+	t.Run("unreachable: the error does not name the challenge", func(t *testing.T) {
 		server := httptest.NewServer(http.NotFoundHandler())
 		server.Close()
 
-		if _, err := newTestClient(server.URL).GetLoginRequest(context.Background(), "lc"); err == nil || errors.Is(err, ErrNotFound) {
-			t.Errorf("expected an error that is not %v, got %v", ErrNotFound, err)
+		_, err := newTestClient(server.URL).GetLoginRequest(context.Background(), "the-challenge")
+		if err == nil || errors.Is(err, ErrNotFound) {
+			t.Fatalf("expected an error that is not %v, got %v", ErrNotFound, err)
+		}
+		if strings.Contains(err.Error(), "the-challenge") {
+			t.Errorf("expected no challenge in the error, got %v", err)
 		}
 	})
 }
