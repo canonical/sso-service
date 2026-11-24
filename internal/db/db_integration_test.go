@@ -74,6 +74,9 @@ func ids(t *testing.T, client *DBClient) []int {
 		}
 		out = append(out, id)
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	return out
 }
 
@@ -155,17 +158,19 @@ func TestIntegration_NewDBClient_SessionTimeouts(t *testing.T) {
 			done.Add(1)
 			go func() {
 				defer done.Done()
+				// Once, also when the transaction never began.
+				ready := sync.OnceFunc(held.Done)
+				defer ready()
 				err := client.WithTx(context.Background(), func(ctx context.Context) error {
 					var pid int
 					if err := client.Statement(ctx).Select("pg_backend_pid()").QueryRowContext(ctx).Scan(&pid); err != nil {
-						held.Done()
 						return err
 					}
 					expectSettings(t, ctx, client, want)
 					mu.Lock()
 					backends[pid] = true
 					mu.Unlock()
-					held.Done()
+					ready()
 					<-release
 
 					return nil

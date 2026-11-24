@@ -770,9 +770,12 @@ func TestIntegration_Storage_Constraints(t *testing.T) {
 		return err
 	}
 	id := uuid.NewString()
+	if err := insert(map[string]any{"id": id}); err != nil {
+		t.Fatalf("failed to insert the row a duplicate id repeats: %v", err)
+	}
 
 	accepted := map[string]map[string]any{
-		"draft":                 {"id": id},
+		"draft":                 {},
 		"tested":                {"tested_at": time.Now().UTC()},
 		"created by an account": {"created_by": uuid.NewString()},
 	}

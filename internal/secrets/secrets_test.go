@@ -108,8 +108,12 @@ func TestEnvelope_Open(t *testing.T) {
 		}
 	})
 
-	flipped := []byte(token)
-	flipped[len(flipped)/2] ^= 'A' ^ 'B'
+	raw, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	raw[len(raw)/2] ^= 1
+	altered := base64.RawURLEncoding.EncodeToString(raw)
 
 	testCases := []struct {
 		name     string
@@ -118,7 +122,7 @@ func TestEnvelope_Open(t *testing.T) {
 		token    string
 	}{
 		{name: "another purpose", envelope: envelope, purpose: "cookie", token: token},
-		{name: "altered", envelope: envelope, purpose: "ticket", token: string(flipped)},
+		{name: "altered", envelope: envelope, purpose: "ticket", token: altered},
 		{name: "not base64url", envelope: envelope, purpose: "ticket", token: "!!"},
 		{name: "another key", envelope: newEnvelope(t, key('b')), purpose: "ticket", token: token},
 		{name: "empty", envelope: envelope, purpose: "ticket", token: ""},
