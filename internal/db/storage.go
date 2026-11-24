@@ -126,7 +126,7 @@ func (d *DBClient) Close() {
 func NewDBClient(ctx context.Context, cfg Config, tracer tracing.TracingInterface, monitor monitoring.MonitorInterface, logger logging.LoggerInterface) (*DBClient, error) {
 	config, err := pgxpool.ParseConfig(cfg.DSN)
 	if err != nil {
-		logger.Fatalf("DSN validation failed, shutting down, err: %v", err)
+		return nil, fmt.Errorf("DSN validation failed: %w", err)
 	}
 
 	if cfg.TracingEnabled {
@@ -150,13 +150,13 @@ func NewDBClient(ctx context.Context, cfg Config, tracer tracing.TracingInterfac
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create db pool: %v", err)
+		return nil, fmt.Errorf("failed to create db pool: %w", err)
 	}
 
 	if cfg.TracingEnabled {
 		// when tracing is enabled, also collect metrics
 		if err := otelpgx.RecordStats(pool); err != nil {
-			return nil, fmt.Errorf("failed to start metrics collection for database: %v", err)
+			return nil, fmt.Errorf("failed to start metrics collection for database: %w", err)
 		}
 	}
 
@@ -164,7 +164,7 @@ func NewDBClient(ctx context.Context, cfg Config, tracer tracing.TracingInterfac
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
 		pool.Close()
-		return nil, fmt.Errorf("failed to connect to the database: %v", err)
+		return nil, fmt.Errorf("failed to connect to the database: %w", err)
 	}
 
 	d := new(DBClient)

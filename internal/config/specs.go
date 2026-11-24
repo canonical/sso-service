@@ -24,8 +24,8 @@ type EnvSpec struct {
 
 	DSN string `envconfig:"dsn" required:"true" validate:"required"`
 
-	DBMaxConns        int32         `envconfig:"db_max_conns" default:"10"`
-	DBMinConns        int32         `envconfig:"db_min_conns" default:"1"`
+	DBMaxConns        int32         `envconfig:"db_max_conns" default:"10" validate:"gte=1"`
+	DBMinConns        int32         `envconfig:"db_min_conns" default:"1" validate:"gte=0,ltefield=DBMaxConns"`
 	DBMaxConnLifetime time.Duration `envconfig:"db_max_conn_lifetime" default:"1h"`
 	DBMaxConnIdleTime time.Duration `envconfig:"db_max_conn_idle_time" default:"30m"`
 
@@ -33,7 +33,7 @@ type EnvSpec struct {
 	KratosAdminURL   string `envconfig:"kratos_admin_url" required:"true" validate:"required,url"`
 
 	TenantServiceGRPCAddress string        `envconfig:"tenant_service_grpc_address" required:"true" validate:"required"`
-	TenantServiceGRPCTimeout time.Duration `envconfig:"tenant_service_grpc_timeout" default:"5s"`
+	TenantServiceGRPCTimeout time.Duration `envconfig:"tenant_service_grpc_timeout" default:"5s" validate:"gt=0s"`
 	TenantServiceTLSEnabled  bool          `envconfig:"tenant_service_tls_enabled" default:"false"`
 
 	AuthenticationEnabled         bool   `envconfig:"authentication_enabled" default:"true"`

@@ -31,8 +31,9 @@ const (
 )
 
 func wrapTimeout(err error) error {
-	if err == nil {
-		return nil
+	// nil, or named already by a store call inside WithTx.
+	if err == nil || errors.Is(err, ErrBusy) || errors.Is(err, ErrTimeout) {
+		return err
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

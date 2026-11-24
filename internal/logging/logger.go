@@ -40,7 +40,7 @@ func NewServiceLogger(l string) *zap.SugaredLogger {
 		lvl = zap.DebugLevel
 	case "info":
 		lvl = zap.InfoLevel
-	case "warning":
+	case "warn", "warning":
 		lvl = zap.WarnLevel
 	case "error":
 		lvl = zap.ErrorLevel

@@ -40,12 +40,17 @@ func levelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 
 func WithRequest(request *http.Request) Option {
 	h := strings.Split(request.Host, ":")
+	// The path only: a query holds authorization codes and addresses.
+	path := ""
+	if request.URL != nil {
+		path = request.URL.Path
+	}
 	fields := []Field{
 		zap.String("useragent", request.UserAgent()),
 		zap.String("source_ip", request.RemoteAddr),
 		zap.String("hostname", h[0]),
 		zap.String("protocol", request.Proto),
-		zap.String("request_uri", request.RequestURI),
+		zap.String("request_uri", path),
 		zap.String("request_method", request.Method),
 	}
 	if len(h) > 1 {
@@ -278,7 +283,7 @@ func NewSecurityLogger(l string) *SecurityLogger {
 		lvl = zap.DebugLevel
 	case "info":
 		lvl = zap.InfoLevel
-	case "warn":
+	case "warn", "warning":
 		lvl = zap.WarnLevel
 	case "error":
 		lvl = zap.ErrorLevel
