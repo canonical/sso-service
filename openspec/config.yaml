@@ -15,6 +15,14 @@ context: |
   - ticket: one sign-in attempt, sealed into a token; nothing is stored for it.
   - MFA: a second factor; it is the login UI's concern, never this service's.
 
+  Write every artifact in ASD-STE100 Simplified Technical English, at about 80% compliance:
+  - At most 25 words in a sentence, and 20 in a WHEN, THEN or AND line and in a task. One topic in each sentence.
+  - Active voice with the real actor, and simple tenses. No -ing verb forms, semicolons, dashes or "e.g.".
+  - SHALL in requirements. Elsewhere use "must" or "can", not "should", "may", "would" or "could".
+  - When one SHALL applies to several clauses, each clause that you split off keeps its SHALL.
+  - Ordered steps are a numbered list.
+  - Names in backticks (fields, errors, metrics, settings, commands) stay as they are.
+
   OpenSpec intent for this repo:
   - Specs are the single source of truth for behavior.
   - Purpose captures concise rationale (why); Requirements capture normative behavior (what).
