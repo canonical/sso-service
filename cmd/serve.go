@@ -60,6 +60,8 @@ const (
 	startupTimeout = 30 * time.Second
 
 	shutdownTimeout = 20 * time.Second
+
+	flushTimeout = 3 * time.Second
 )
 
 var serveCmd = &cobra.Command{
@@ -86,6 +88,9 @@ func loadSpecs() (*config.EnvSpec, error) {
 	if err := validatePublicURL(specs.PublicURL, specs.Dev); err != nil {
 		return nil, fmt.Errorf("PUBLIC_URL: %w", err)
 	}
+	if _, err := secrets.NewEnvelope(specs.EnvelopeKey); err != nil {
+		return nil, fmt.Errorf("ENVELOPE_KEY: %w", err)
+	}
 
 	return specs, nil
 }
@@ -98,10 +103,14 @@ func validatePublicURL(raw string, dev bool) error {
 	if err != nil {
 		return err
 	}
-	if u.Scheme != "https" && !dev {
-		return errors.New("must be an https URL unless DEV is set")
+	if u.Hostname() == "" || u.User != nil {
+		return errors.New("must have a host and no userinfo")
 	}
-	if u.RawQuery != "" || u.Fragment != "" {
+	if u.Scheme != "https" && !(dev && u.Scheme == "http") {
+		return errors.New("must be an https URL, or http with DEV set")
+	}
+	// An empty query or fragment parses as none.
+	if strings.ContainsAny(raw, "?#") {
 		return errors.New("must have no query and no fragment")
 	}
 
@@ -310,6 +319,7 @@ func run(logger *logging.Logger, tracer *tracing.Tracer, srv *http.Server, grpcS
 	case <-c:
 	case serverError = <-failures:
 	}
+	signal.Stop(c)
 
 	// Both servers stop taking requests and let those in flight finish; what
 	// is still running at the deadline is cut, so the process always exits.
@@ -329,7 +339,10 @@ func run(logger *logging.Logger, tracer *tracing.Tracer, srv *http.Server, grpcS
 	case <-ctx.Done():
 		grpcServer.Stop()
 	}
-	if err := tracer.Shutdown(ctx); err != nil {
+	// The drain may have spent ctx: the last spans get their own bound.
+	flushCtx, cancelFlush := context.WithTimeout(context.Background(), flushTimeout)
+	defer cancelFlush()
+	if err := tracer.Shutdown(flushCtx); err != nil {
 		logger.Errorf("failed to export the last spans: %v", err)
 	}
 

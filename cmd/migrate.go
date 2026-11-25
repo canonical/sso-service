@@ -99,6 +99,10 @@ func init() {
 }
 
 func migrate(cmd *cobra.Command, dsn, command, format string, version int) error {
+	if format != "text" && format != "json" {
+		return fmt.Errorf("invalid format %q: must be text or json", format)
+	}
+
 	config, err := pgx.ParseConfig(dsn)
 	if err != nil {
 		return fmt.Errorf("DSN validation failed, shutting down, err: %v", err)
@@ -106,6 +110,7 @@ func migrate(cmd *cobra.Command, dsn, command, format string, version int) error
 	config.RuntimeParams["lock_timeout"] = migrationLockTimeout
 
 	db := stdlib.OpenDB(*config)
+	defer db.Close()
 
 	if err := db.PingContext(cmd.Context()); err != nil {
 		return fmt.Errorf("DB connection failed, shutting down, err: %v", err)

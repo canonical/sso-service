@@ -21,7 +21,7 @@ func setEnvironment(t *testing.T) {
 		"SERVICE_TOKEN_URL":           "https://hydra.example/oauth2/token",
 		"SERVICE_CLIENT_ID":           "sso-service",
 		"SERVICE_CLIENT_SECRET":       "s",
-		"ENVELOPE_KEY":                "a2V5",
+		"ENVELOPE_KEY":                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 	} {
 		t.Setenv(k, v)
 	}
@@ -89,6 +89,7 @@ func TestLoadSpecs(t *testing.T) {
 		name  string
 		key   string
 		value string
+		dev   bool
 	}{
 		{name: "no issuer", key: "AUTHENTICATION_ISSUER", value: ""},
 		{name: "invalid JWKS URL", key: "AUTHENTICATION_JWKS_URL", value: "keys"},
@@ -98,13 +99,19 @@ func TestLoadSpecs(t *testing.T) {
 		{name: "no public URL", key: "PUBLIC_URL", value: ""},
 		{name: "public URL not https", key: "PUBLIC_URL", value: "http://sso.example"},
 		{name: "public URL with a query", key: "PUBLIC_URL", value: "https://sso.example/?a=b"},
+		{name: "public URL with an empty query", key: "PUBLIC_URL", value: "https://sso.example?"},
 		{name: "public URL with a fragment", key: "PUBLIC_URL", value: "https://sso.example/#a"},
+		{name: "public URL over ftp with DEV", key: "PUBLIC_URL", value: "ftp://sso.example", dev: true},
 		{name: "no envelope key", key: "ENVELOPE_KEY", value: ""},
+		{name: "a short envelope key", key: "ENVELOPE_KEY", value: "a2V5"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			setEnvironment(t)
+			if tc.dev {
+				t.Setenv("DEV", "true")
+			}
 			t.Setenv(tc.key, tc.value)
 
 			if _, err := loadSpecs(); err == nil {
