@@ -4,6 +4,7 @@
 package tenants
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -55,6 +56,9 @@ func fromStatus(err error) error {
 		return fmt.Errorf("%w: %s", ErrInvalid, st.Message())
 	case codes.FailedPrecondition:
 		return fmt.Errorf("%w: %s", ErrRefused, st.Message())
+	case codes.Canceled:
+		// The caller gave up: still no answer, and readable as a cancellation.
+		return fmt.Errorf("%w: %w", ErrUnavailable, context.Canceled)
 	default:
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
