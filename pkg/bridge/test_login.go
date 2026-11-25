@@ -51,8 +51,9 @@ func (s *Service) testCallback(ctx context.Context, test *types.TestState, callb
 	return &Result{Page: testSucceededPage(connection.Label)}, nil
 }
 
-// testFailure returns what to tell the admin when the answer is not one a
-// sign-in would accept, in this service's own words, or nothing.
+// testFailure returns what to tell the admin when the identity provider's
+// answer fails a test's checks, in this service's own words, or nothing. A test
+// does not match the address to an account or a membership.
 func (s *Service) testFailure(ctx context.Context, test *types.TestState, connection *types.Connection, callback *Callback) string {
 	if callback.Error != "" {
 		s.logger.Warnw("test sign-in refused at the identity provider", "connection_id", connection.ID, "error", bounded(callback.Error))
@@ -77,6 +78,9 @@ func (s *Service) testFailure(ctx context.Context, test *types.TestState, connec
 	}
 	if claims.Email == "" {
 		return "The identity provider asserted no email address, so members cannot be matched to their accounts."
+	}
+	if claims.EmailVerified != nil && !*claims.EmailVerified {
+		return "The identity provider marks this account's email address as not confirmed, so its sign-ins would be refused."
 	}
 
 	return ""

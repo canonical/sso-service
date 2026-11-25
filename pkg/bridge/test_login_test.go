@@ -73,6 +73,14 @@ func TestService_testCallback(t *testing.T) {
 				"The identity provider asserted no email address, so members cannot be matched to their accounts."),
 		},
 		{
+			name: "email not confirmed",
+			setupMocks: func(m *mocks, state string) {
+				expectExchange(m, draft(), state, &idp.Claims{Subject: "s", Email: email, EmailVerified: verified(false)}, nil)
+			},
+			expectedPage: messagePage("Test sign-in failed",
+				"The identity provider marks this account's email address as not confirmed, so its sign-ins would be refused."),
+		},
+		{
 			// The code is not redeemed, and the page says nothing of the
 			// identity provider's own words.
 			name: "idp refused",

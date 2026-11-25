@@ -39,4 +39,9 @@ func TestBounded(t *testing.T) {
 	if got := bounded("line one\r\nforged line\x7f"); got != "line oneforged line" {
 		t.Errorf("expected the control characters gone, got %q", got)
 	}
+	// A C1 control, invalid UTF-8 and a bidi override are dropped before the
+	// length counts, and the cut falls between runes.
+	if got := bounded("\u0085a\xffb" + strings.Repeat("é", 58) + "‮c" + "é"); got != "ab"+strings.Repeat("é", 58)+"c" {
+		t.Errorf("expected only printable runes, cut at 120 bytes, got %q", got)
+	}
 }

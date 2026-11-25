@@ -5,6 +5,8 @@ package bridge
 
 import (
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	v0tenant "github.com/canonical/identity-platform-api/v0/tenant"
 )
@@ -24,15 +26,16 @@ func admits(signIn *v0tenant.SignInContext, connectionID string) bool {
 // bounded keeps text the identity provider controls short and printable, for
 // the log.
 func bounded(raw string) string {
-	if len(raw) > 120 {
-		raw = raw[:120]
+	var out strings.Builder
+	for _, r := range raw {
+		if r == utf8.RuneError || !unicode.IsPrint(r) {
+			continue
+		}
+		if out.Len()+utf8.RuneLen(r) > 120 {
+			break
+		}
+		out.WriteRune(r)
 	}
 
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
-			return -1
-		}
-
-		return r
-	}, raw)
+	return out.String()
 }
