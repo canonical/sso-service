@@ -16,6 +16,9 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/codes"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"golang.org/x/net/http/httpproxy"
 
 	"github.com/canonical/sso-service/internal/limits"
@@ -279,11 +282,35 @@ func TestNewHTTPClient(t *testing.T) {
 	if client.Timeout != 3*time.Second {
 		t.Errorf("expected a timeout of 3s for one request, got %s", client.Timeout)
 	}
-	if _, ok := client.Transport.(schemeGuard); !ok {
-		t.Errorf("expected every request to go through the scheme guard, got %T", client.Transport)
+	if _, err := client.Get("http://idp.example/token"); !errors.Is(err, ErrInsecureURL) {
+		t.Errorf("expected every request to go through the scheme guard, got %v", err)
 	}
 	if err := client.CheckRedirect(nil, nil); !errors.Is(err, http.ErrUseLastResponse) {
 		t.Errorf("expected no redirect followed, got %v", err)
+	}
+}
+
+func TestNewHTTPClient_RefusalOnTheSpan(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", limits.MaxResponseBytes+1)))
+	}))
+	defer server.Close()
+	recorder := tracetest.NewSpanRecorder()
+	ctx, parent := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)).Tracer("test").Start(context.Background(), "parent")
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+
+	_, err := newHTTPClient(hostPolicy{dev: true}, &httpproxy.Config{}, 3*time.Second).Do(request)
+	parent.End()
+
+	if !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("expected %v, got %v", ErrResponseTooLarge, err)
+	}
+	spans := recorder.Ended()
+	if len(spans) != 2 {
+		t.Fatalf("expected the request's span and its parent, got %d spans", len(spans))
+	}
+	if status := spans[0].Status(); status.Code != codes.Error {
+		t.Errorf("expected the request's span to end with an error, got %v", status)
 	}
 }
 

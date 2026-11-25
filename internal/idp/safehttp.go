@@ -232,12 +232,13 @@ func newHTTPClient(policy hostPolicy, proxy *httpproxy.Config, timeout time.Dura
 		ForceAttemptHTTP2:     true,
 	}
 
-	// No trace context goes to an identity provider: it is outside the platform.
-	traced := otelhttp.NewTransport(transport, otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()))
-
 	return &http.Client{
-		Timeout:   timeout,
-		Transport: schemeGuard{policy: policy, next: traced},
+		Timeout: timeout,
+		// The guard is inside the span, so its refusals are the span's errors.
+		// No trace context goes to an identity provider: it is outside the
+		// platform.
+		Transport: otelhttp.NewTransport(schemeGuard{policy: policy, next: transport},
+			otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator())),
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
