@@ -6,6 +6,7 @@ package logging
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -39,17 +40,20 @@ func levelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func WithRequest(request *http.Request) Option {
-	h := strings.Split(request.Host, ":")
+	hostname, port, err := net.SplitHostPort(request.Host)
+	if err != nil {
+		hostname, port = request.Host, ""
+	}
 	fields := []Field{
 		zap.String("useragent", request.UserAgent()),
 		zap.String("source_ip", request.RemoteAddr),
-		zap.String("hostname", h[0]),
+		zap.String("hostname", hostname),
 		zap.String("protocol", request.Proto),
 		zap.String("request_uri", redactedURI(request.URL)),
 		zap.String("request_method", request.Method),
 	}
-	if len(h) > 1 {
-		fields = append(fields, zap.String("port", h[1]))
+	if port != "" {
+		fields = append(fields, zap.String("port", port))
 	}
 
 	return fields
@@ -69,8 +73,8 @@ func WithContext(ctx context.Context) Option {
 		RequestUriKey:    "request_uri",
 		RequestMethodKey: "request_method",
 	} {
-		if v := ctx.Value(key); v != nil {
-			ret = append(ret, zap.String(label, v.(string)))
+		if v, ok := ctx.Value(key).(string); ok {
+			ret = append(ret, zap.String(label, v))
 		}
 	}
 
