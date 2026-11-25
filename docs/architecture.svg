@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1840 910" width="1840" height="910" role="img" aria-labelledby="t"><title id="t">How the SSO Service fits into the Identity Platform</title><defs><marker id="path" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2fd39a"/></marker><marker id="call" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#8e99b3"/></marker><marker id="call-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#8e99b3"/></marker></defs><rect width="1840" height="910" fill="#0b1022"/>
+<text x="30" y="42" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="21" fill="#e8ebf4" text-anchor="start" font-weight="bold">Canonical Identity Platform: Bring Your Own SSO architecture</text>
+<rect x="250" y="70" width="1215" height="765" rx="14" fill="#ffffff" fill-opacity="0.025" stroke="#d4a017" stroke-width="1.6" stroke-dasharray="7 5"/>
+<text x="266" y="822" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="12.5" fill="#d4a017" text-anchor="start" font-weight="bold">Canonical Identity Platform</text>
+<rect x="1180" y="345" width="265" height="455" rx="14" fill="#ffffff" fill-opacity="0.025" stroke="#c9566f" stroke-width="1.6" stroke-dasharray="7 5"/>
+<text x="1194" y="786" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="12.5" fill="#c9566f" text-anchor="start" font-weight="bold">sso-service (one process)</text>
+<rect x="1530" y="500" width="280" height="200" rx="14" fill="#ffffff" fill-opacity="0.025" stroke="#d4a017" stroke-width="1.6" stroke-dasharray="7 5"/>
+<text x="1546" y="522" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="12.5" fill="#d4a017" text-anchor="start" font-weight="bold">Customer environment</text>
+<rect x="30" y="112" width="190" height="72" rx="9" fill="#171f33" stroke="#6b7a99" stroke-width="2"/>
+<text x="125.0" y="145.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Admin client</text>
+<text x="125.0" y="162.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">tenant admin, platform admin</text>
+<rect x="30" y="400" width="190" height="90" rx="9" fill="#171f33" stroke="#6b7a99" stroke-width="2"/>
+<text x="125.0" y="435.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">User's browser</text>
+<text x="125.0" y="452.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">is sent along</text>
+<text x="125.0" y="466.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">the green path</text>
+<rect x="30" y="640" width="190" height="80" rx="9" fill="#171f33" stroke="#6b7a99" stroke-width="2"/>
+<text x="125.0" y="677.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Apps</text>
+<text x="125.0" y="694.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">OAuth2 / OIDC clients</text>
+<rect x="470" y="118" width="250" height="82" rx="9" fill="#0f2a26" stroke="#2fbf8f" stroke-width="2"/>
+<text x="595.0" y="142.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Tenant Service</text>
+<text x="595.0" y="159.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">SSO policy, memberships,</text>
+<text x="595.0" y="173.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">invitations</text>
+<text x="595.0" y="187.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#4fd6a6" text-anchor="middle" font-weight="normal">its own database</text>
+<rect x="830" y="118" width="240" height="82" rx="9" fill="#3a1626" stroke="#e0607e" stroke-width="2"/>
+<text x="950.0" y="149.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Istio gateway</text>
+<text x="950.0" y="166.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">Authorization Service (ext_authz)</text>
+<text x="950.0" y="180.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#f08aa2" text-anchor="middle" font-weight="normal">authorizes the management routes</text>
+<rect x="1237" y="118" width="190" height="82" rx="9" fill="#2a1f55" stroke="#8b6ee8" stroke-width="2"/>
+<text x="1332.0" y="149.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">PostgreSQL</text>
+<text x="1332.0" y="166.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">sso_connections</text>
+<text x="1332.0" y="180.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#b3a0f5" text-anchor="middle" font-weight="normal">client secrets encrypted</text>
+<rect x="280" y="400" width="190" height="90" rx="9" fill="#0b2634" stroke="#22b8cf" stroke-width="2"/>
+<text x="375.0" y="435.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Login UI</text>
+<text x="375.0" y="452.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">decides routing, tenant</text>
+<text x="375.0" y="466.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">checks, MFA per tenant</text>
+<rect x="575" y="400" width="190" height="90" rx="9" fill="#0f2a26" stroke="#2fbf8f" stroke-width="2"/>
+<text x="670.0" y="435.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Ory Kratos</text>
+<text x="670.0" y="452.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">identities, sessions, links</text>
+<text x="670.0" y="466.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#4fd6a6" text-anchor="middle" font-weight="normal">one provider: byo-sso</text>
+<rect x="870" y="400" width="190" height="90" rx="9" fill="#0f2a26" stroke="#2fbf8f" stroke-width="2"/>
+<text x="965.0" y="435.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Hydra (hydra-sso)</text>
+<text x="965.0" y="452.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">a second Hydra: the OIDC</text>
+<text x="965.0" y="466.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">provider behind byo-sso</text>
+<rect x="1197" y="400" width="230" height="100" rx="9" fill="#0f2a26" stroke="#2fbf8f" stroke-width="2"/>
+<text x="1312.0" y="433.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">sso-service</text>
+<text x="1312.0" y="450.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">browser pages, sign-in API (gRPC),</text>
+<text x="1312.0" y="464.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">management API (HTTP)</text>
+<text x="1312.0" y="478.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#4fd6a6" text-anchor="middle" font-weight="normal">attempts stateless: sealed ticket</text>
+<rect x="280" y="640" width="190" height="80" rx="9" fill="#0f2a26" stroke="#2fbf8f" stroke-width="2"/>
+<text x="375.0" y="677.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Hydra (main)</text>
+<text x="375.0" y="694.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">the apps' OAuth2 server</text>
+<rect x="1197" y="660" width="230" height="92" rx="9" fill="#0f2a26" stroke="#2fbf8f" stroke-width="2"/>
+<text x="1312.0" y="696.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">OIDC client</text>
+<text x="1312.0" y="713.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">discovery, token, keys</text>
+<text x="1312.0" y="727.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#4fd6a6" text-anchor="middle" font-weight="normal">SSRF guard: https, public addresses</text>
+<rect x="1555" y="560" width="230" height="92" rx="9" fill="#171f33" stroke="#6b7a99" stroke-width="2"/>
+<text x="1670.0" y="596.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="15" fill="#e8ebf4" text-anchor="middle" font-weight="bold">Customer IdP</text>
+<text x="1670.0" y="613.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">any OIDC provider:</text>
+<text x="1670.0" y="627.0" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">Entra ID, Okta, Google ...</text>
+<path d="M 220 445 L 280 445" fill="none" stroke="#2fd39a" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#path)"/>
+<path d="M 470 445 L 575 445" fill="none" stroke="#2fd39a" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#path)"/>
+<text x="522" y="419" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="middle" font-weight="normal">byo-sso</text>
+<text x="522" y="432" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="middle" font-weight="normal">+ ticket</text>
+<path d="M 765 445 L 870 445" fill="none" stroke="#2fd39a" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#path)"/>
+<text x="817" y="419" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="middle" font-weight="normal">OIDC</text>
+<text x="817" y="432" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="middle" font-weight="normal">authorization</text>
+<path d="M 1060 437 L 1197 437" fill="none" stroke="#2fd39a" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#path)"/>
+<text x="1066" y="411" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="start" font-weight="normal">login and</text>
+<text x="1066" y="424" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="start" font-weight="normal">consent pages</text>
+<path d="M 1427 437 L 1722 437 L 1722 560" fill="none" stroke="#2fd39a" stroke-width="2.6" stroke-linejoin="round" marker-end="url(#path)"/>
+<text x="1478" y="428" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#2fd39a" text-anchor="start" font-weight="normal">the user signs in at their IdP</text>
+<path d="M 220 140 L 236 140 L 236 100 L 950 100 L 950 118" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="262" y="92" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">management API, with a JWT</text>
+<path d="M 830 160 L 720 160" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="775" y="150" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="middle" font-weight="normal">tenants API</text>
+<path d="M 1010 200 L 1010 250 L 1262 250 L 1262 400" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="1024" y="242" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">SSO management API</text>
+<path d="M 300 400 L 300 160 L 470 160" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="312" y="226" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">tenants an address may</text>
+<text x="312" y="239" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">sign in to, what a tenant</text>
+<text x="312" y="252" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">requires (gRPC, no token)</text>
+<path d="M 420 400 L 420 345 L 1168 345 L 1168 416 L 1197 416" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="600" y="337" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">sign-in options, ticket, confirm the sign-in (gRPC, no token)</text>
+<path d="M 1215 400 L 1215 300 L 660 300 L 660 200" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="740" y="292" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">checks and writes the SSO policy (gRPC, JWT from the main Hydra)</text>
+<path d="M 1340 400 L 1340 200" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="1350" y="290" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">connections</text>
+<path d="M 1197 472 L 1060 472" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="1066" y="492" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">accepts the login</text>
+<text x="1066" y="505" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">(admin API)</text>
+<path d="M 1236 500 L 1236 560 L 670 560 L 670 490" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="700" y="552" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">reads accounts and their links (admin API)</text>
+<path d="M 1312 500 L 1312 660" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<path d="M 1427 706 L 1500 706 L 1500 620 L 1555 620" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="1510" y="722" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">discovery, token, keys</text>
+<text x="1510" y="735" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">(backend, https only)</text>
+<path d="M 375 490 L 375 640" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)" marker-start="url(#call-start)"/>
+<text x="386" y="560" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">login &amp; consent</text>
+<text x="386" y="573" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="10.5" fill="#9aa6c0" text-anchor="start" font-weight="normal">provider</text>
+<path d="M 220 680 L 280 680" fill="none" stroke="#8e99b3" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#call)"/>
+<text x="30" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11.5" fill="#9aa6c0" text-anchor="start" font-weight="bold">Legend</text>
+<rect x="100" y="856" width="16" height="11" rx="2" fill="#0b2634" stroke="#22b8cf" stroke-width="1.5"/>
+<text x="122" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">Frontend</text>
+<rect x="210" y="856" width="16" height="11" rx="2" fill="#0f2a26" stroke="#2fbf8f" stroke-width="1.5"/>
+<text x="232" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">Backend</text>
+<rect x="320" y="856" width="16" height="11" rx="2" fill="#2a1f55" stroke="#8b6ee8" stroke-width="1.5"/>
+<text x="342" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">Database</text>
+<rect x="430" y="856" width="16" height="11" rx="2" fill="#3a1626" stroke="#e0607e" stroke-width="1.5"/>
+<text x="452" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">Gateway</text>
+<rect x="540" y="856" width="16" height="11" rx="2" fill="#171f33" stroke="#6b7a99" stroke-width="1.5"/>
+<text x="562" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">External</text>
+<path d="M 650 862 L 684 862" stroke="#2fd39a" stroke-width="2.6" marker-end="url(#path)"/>
+<text x="692" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">the user's browser is sent this way</text>
+<path d="M 950 862 L 984 862" stroke="#8e99b3" stroke-width="1.8" marker-end="url(#call)"/>
+<text x="992" y="866" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">one service calls another</text>
+<text x="30" y="888" font-family="DejaVu Sans Mono, Menlo, Consolas, Liberation Mono, monospace" font-size="11" fill="#9aa6c0" text-anchor="start" font-weight="normal">sso-service's browser pages are served on the Login UI's host. Sign-in calls (Login UI to Tenant Service and sso-service) do not go through the gateway.</text>
+</svg>
