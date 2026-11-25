@@ -61,6 +61,11 @@ func NewService(
 func (s *Service) recordError(span trace.Span, msg string, err error, keysAndValues ...interface{}) {
 	span.RecordError(err)
 	span.SetStatus(otelcodes.Error, err.Error())
+	// A caller that gave up is not a failure of this service.
+	if errors.Is(err, context.Canceled) {
+		s.logger.Debugw(msg, append(keysAndValues, "error", err)...)
+		return
+	}
 	s.logger.Errorw(msg, append(keysAndValues, "error", err)...)
 }
 
@@ -158,7 +163,7 @@ func (s *Service) VerifyAttempt(ctx context.Context, token, identityID, receipt 
 	case err != nil:
 		s.recordError(span, "failed to get identity", err)
 
-		return nil, fmt.Errorf("%w: %v", ErrKratosUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrKratosUnavailable, err)
 	case !strings.EqualFold(identity.Email(), ticket.Email):
 		return nil, refused("the account's address differs")
 	}
@@ -193,7 +198,7 @@ func (s *Service) ListLinks(ctx context.Context, identityID string) ([]*types.Co
 	if err != nil {
 		s.recordError(span, "failed to get identity", err)
 
-		return nil, fmt.Errorf("%w: %v", ErrKratosUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrKratosUnavailable, err)
 	}
 
 	accountLinks := links.Of(identity)
@@ -236,7 +241,7 @@ func (s *Service) DeleteLink(ctx context.Context, identityID, connectionID strin
 	if err != nil {
 		s.recordError(span, "failed to get identity", err)
 
-		return fmt.Errorf("%w: %v", ErrKratosUnavailable, err)
+		return fmt.Errorf("%w: %w", ErrKratosUnavailable, err)
 	}
 
 	remove := links.At(identity, connectionID)
@@ -258,7 +263,7 @@ func (s *Service) DeleteLink(ctx context.Context, identityID, connectionID strin
 		if err := s.kratos.DeleteOIDCIdentifier(ctx, identity.ID, l.Identifier()); err != nil && !errors.Is(err, kratos.ErrNotFound) {
 			s.recordError(span, "failed to delete link", err)
 
-			return fmt.Errorf("%w: %v", ErrKratosUnavailable, err)
+			return fmt.Errorf("%w: %w", ErrKratosUnavailable, err)
 		}
 	}
 	s.logger.Security().AdminAction(identity.ID, "delete_link", "sso.Service.DeleteLink", connectionID)

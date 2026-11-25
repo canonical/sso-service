@@ -116,6 +116,11 @@ func NewService(
 func (s *Service) recordError(span trace.Span, msg string, err error, keysAndValues ...interface{}) {
 	span.RecordError(err)
 	span.SetStatus(otelcodes.Error, err.Error())
+	// A browser that went away is not a failure of this service.
+	if errors.Is(err, context.Canceled) {
+		s.logger.Debugw(msg, append(keysAndValues, "error", err)...)
+		return
+	}
 	s.logger.Errorw(msg, append(keysAndValues, "error", err)...)
 }
 

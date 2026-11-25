@@ -74,6 +74,11 @@ func NewService(
 func (s *Service) recordError(span trace.Span, msg string, err error, keysAndValues ...interface{}) {
 	span.RecordError(err)
 	span.SetStatus(otelcodes.Error, err.Error())
+	// A caller that gave up is not a failure of this service.
+	if errors.Is(err, context.Canceled) {
+		s.logger.Debugw(msg, append(keysAndValues, "error", err)...)
+		return
+	}
 	s.logger.Errorw(msg, append(keysAndValues, "error", err)...)
 }
 
@@ -467,11 +472,14 @@ func (s *Service) tenantServiceError(span trace.Span, err error) error {
 	return err
 }
 
-// tenantServiceWriteError also counts a write tenant-service did not answer.
+// tenantServiceWriteError also counts a write tenant-service did not answer,
+// but not one its caller gave up on.
 func (s *Service) tenantServiceWriteError(span trace.Span, rpc string, err error) error {
 	if errors.Is(err, tenants.ErrUnavailable) {
-		if merr := s.monitor.IncrementTenantServiceWriteFailures(map[string]string{"rpc": rpc}); merr != nil {
-			s.logger.Warnf("failed to increment tenant-service write failures counter: %v", merr)
+		if !errors.Is(err, context.Canceled) {
+			if merr := s.monitor.IncrementTenantServiceWriteFailures(map[string]string{"rpc": rpc}); merr != nil {
+				s.logger.Warnf("failed to increment tenant-service write failures counter: %v", merr)
+			}
 		}
 		s.recordError(span, "tenant-service write failed", err, "rpc", rpc)
 	}

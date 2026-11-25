@@ -137,6 +137,8 @@ func (h *Handler) mapErrorToStatus(err error, action string) error {
 	switch {
 	case err == nil:
 		return nil
+	case errors.Is(err, context.Canceled):
+		return status.Error(codes.Canceled, "the request was cancelled")
 	case errors.Is(err, ErrConnectionNotUsable):
 		return apierrors.New(codes.FailedPrecondition, apierrors.NotApplicable, ErrConnectionNotUsable.Error())
 	case errors.Is(err, ErrAttemptNotVerified):
@@ -153,8 +155,6 @@ func (h *Handler) mapErrorToStatus(err error, action string) error {
 		return status.Error(codes.Aborted, "another request is changing this resource; try again")
 	case errors.Is(err, storage.ErrTimeout):
 		return status.Error(codes.Unavailable, "the database did not answer in time; try again later")
-	case errors.Is(err, context.Canceled):
-		return status.Error(codes.Canceled, "the request was cancelled")
 	default:
 		h.logger.Errorf("Unhandled error in %s: %v", action, err)
 		return status.Error(codes.Internal, "internal error")

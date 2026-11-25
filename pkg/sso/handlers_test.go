@@ -383,6 +383,12 @@ func TestHandler_mapErrorToStatus(t *testing.T) {
 			wantMessage: "the request was cancelled",
 		},
 		{
+			name:        "caller went away during a Kratos call",
+			err:         fmt.Errorf("%w: %w", ErrKratosUnavailable, fmt.Errorf("failed to get identity: %w", context.Canceled)),
+			wantCode:    codes.Canceled,
+			wantMessage: "the request was cancelled",
+		},
+		{
 			name:        "anything else is hidden",
 			err:         errors.New("pq: relation does not exist"),
 			wantCode:    codes.Internal,
