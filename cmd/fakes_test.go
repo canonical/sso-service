@@ -162,6 +162,11 @@ func (k *fakeKratos) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		encodeIdentities(w, out)
+	case r.Method != http.MethodGet && (r.Method != http.MethodDelete || rest != "credentials/oidc"):
+		// sso-service never creates or removes an account, and never writes
+		// a link or an address: counted whether the account exists or not.
+		k.writes++
+		w.WriteHeader(http.StatusForbidden)
 	case k.identities[id] == nil:
 		w.WriteHeader(http.StatusNotFound)
 	case r.Method == http.MethodGet:
@@ -176,13 +181,6 @@ func (k *fakeKratos) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		k.setProviders(k.identities[id], kept)
 		w.WriteHeader(http.StatusNoContent)
-	case r.Method == http.MethodPut, r.Method == http.MethodPatch, r.Method == http.MethodDelete:
-		// sso-service never writes a link or an address, and never removes
-		// an account.
-		k.writes++
-		w.WriteHeader(http.StatusForbidden)
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 

@@ -548,9 +548,7 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		// Nothing is stored, so the ticket is not spent: until it
 		// expires it can start another company sign-in, which still needs
 		// the user at the IdP.
-		if rejected := p.loginWith(t, start.Ticket); rejected != "" {
-			t.Fatalf("a ticket starts a sign-in until it expires, got %q", rejected)
-		}
+		p.browser(t).toIdP(p, p.hydra.challenge(start.Ticket))
 		if rejected := p.loginWith(t, altered(start.Ticket)); rejected != bridge.Message(bridge.ReasonExpired) {
 			t.Fatalf("an altered ticket must be refused, got %q", rejected)
 		}
@@ -969,8 +967,8 @@ func TestIntegration_CompanySignIn(t *testing.T) {
 		if _, err := p.platform.DeleteAnyConnection(as("platform-admin"), &v0sso.DeleteAnyConnectionRequest{ConnectionId: id}); err != nil {
 			t.Fatal(err)
 		}
-		if listed, _ := p.platform.ListAllConnections(as("platform-admin"), &v0sso.ListAllConnectionsRequest{OwnerTenantId: gone}); len(listed.GetConnections()) != 0 {
-			t.Fatalf("not deleted: %v", listed)
+		if listed, err := p.platform.ListAllConnections(as("platform-admin"), &v0sso.ListAllConnectionsRequest{OwnerTenantId: gone}); err != nil || len(listed.Connections) != 0 {
+			t.Fatalf("not deleted: %v %v", listed, err)
 		}
 	})
 
