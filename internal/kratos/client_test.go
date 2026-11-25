@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
@@ -302,5 +303,18 @@ func TestIdentity_HasPasskey(t *testing.T) {
 				t.Errorf("expected %v, got %v", tc.expected, got)
 			}
 		})
+	}
+}
+
+// A read that failed after Kratos answered keeps its cause, and a transport
+// error loses its URL, which holds the identifier.
+func TestResponseError(t *testing.T) {
+	if err := responseError(&http.Response{StatusCode: http.StatusOK}, context.Canceled); !errors.Is(err, context.Canceled) {
+		t.Errorf("expected the cancellation kept, got %v", err)
+	}
+
+	redirects := &url.Error{Op: "Get", URL: "http://kratos/admin/identities?credentials_identifier=a@b.example", Err: errors.New("stopped after 10 redirects")}
+	if err := responseError(&http.Response{StatusCode: http.StatusFound}, redirects); strings.Contains(err.Error(), "a@b.example") {
+		t.Errorf("expected no URL in the error, got %v", err)
 	}
 }

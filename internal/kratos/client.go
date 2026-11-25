@@ -216,25 +216,28 @@ func toIdentity(identity *client.Identity) (*Identity, error) {
 }
 
 func responseError(response *http.Response, err error) error {
+	// A transport error names the URL, and with it the address or the
+	// identifier that was looked up: keep the cause only.
+	var transport *url.Error
+	if errors.As(err, &transport) {
+		err = transport.Err
+	}
 	if response == nil {
-		// A transport error names the URL, and with it the address or the
-		// identifier that was looked up: keep the cause only.
-		var transport *url.Error
-		if errors.As(err, &transport) {
-			return transport.Err
-		}
-
 		return err
 	}
 	if response.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
 
+	// A body that could not be read keeps its cause, a cancellation included.
+	var apiError *client.GenericOpenAPIError
+	if !errors.As(err, &apiError) {
+		return fmt.Errorf("%d: %w", response.StatusCode, err)
+	}
 	// Only an error status's body is Kratos's error: a 2xx body that did not
 	// decode is an identity, credentials included.
-	var apiError *client.GenericOpenAPIError
-	body := err.Error()
-	if errors.As(err, &apiError) && response.StatusCode >= 300 {
+	body := apiError.Error()
+	if response.StatusCode >= 300 {
 		body = string(apiError.Body())
 	}
 
