@@ -123,15 +123,14 @@ func (m *Middleware) authenticateGRPC(ctx context.Context, span trace.Span) (con
 		return ctx, status.Error(codes.Unauthenticated, "authorization token is not provided")
 	}
 
-	authHeader := values[0]
-	if !strings.HasPrefix(authHeader, "Bearer ") {
+	token, found := parseBearerToken(values[0])
+	if !found {
 		err := errors.New("authorization token is not a bearer token")
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
 		return ctx, status.Error(codes.Unauthenticated, "authorization token is not a bearer token")
 	}
 
-	token := strings.TrimPrefix(authHeader, "Bearer ")
 	userID, err := m.verifier.VerifyToken(ctx, token)
 	if err != nil {
 		m.logger.Debugf("gRPC JWT verification failed: %v", err)
@@ -144,21 +143,23 @@ func (m *Middleware) authenticateGRPC(ctx context.Context, span trace.Span) (con
 }
 
 func (m *Middleware) getBearerToken(headers http.Header) (string, bool) {
-	bearer := headers.Get("Authorization")
-	if bearer == "" {
+	return parseBearerToken(headers.Get("Authorization"))
+}
+
+// parseBearerToken reads "Bearer <token>" (RFC 6750); the scheme is
+// case-insensitive (RFC 9110 §11.1).
+func parseBearerToken(value string) (string, bool) {
+	f := strings.Fields(value)
+	if len(f) != 2 || !strings.EqualFold(f[0], "Bearer") {
 		return "", false
 	}
 
-	// Only support "Bearer <token>" format (RFC 6750)
-	if !strings.HasPrefix(bearer, "Bearer ") {
-		return "", false
-	}
-
-	return strings.TrimPrefix(bearer, "Bearer "), true
+	return f[1], true
 }
 
 func (m *Middleware) unauthorizedResponse(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("WWW-Authenticate", "Bearer")
 	w.WriteHeader(http.StatusUnauthorized)
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  http.StatusUnauthorized,

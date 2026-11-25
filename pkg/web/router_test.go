@@ -41,7 +41,8 @@ type admin struct {
 
 func (a *admin) ListAllConnections(ctx context.Context, r *v0sso.ListAllConnectionsRequest) (*v0sso.ListAllConnectionsResponse, error) {
 	a.ctx = ctx
-	if _, ok := authentication.GetUserID(ctx); !ok {
+	// The no-op verifier takes the token as the user id, and every case sends "x".
+	if id, _ := authentication.GetUserID(ctx); id != "x" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
 	return &v0sso.ListAllConnectionsResponse{Connections: []*v0sso.Connection{{Id: "c", OwnerTenantId: r.OwnerTenantId}}}, nil
@@ -49,7 +50,7 @@ func (a *admin) ListAllConnections(ctx context.Context, r *v0sso.ListAllConnecti
 
 func (a *admin) ListConnections(ctx context.Context, r *v0sso.ListConnectionsRequest) (*v0sso.ListConnectionsResponse, error) {
 	a.ctx = ctx
-	if _, ok := authentication.GetUserID(ctx); !ok {
+	if id, _ := authentication.GetUserID(ctx); id != "x" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
 	return &v0sso.ListConnectionsResponse{Connections: []*v0sso.Connection{{Id: "c", OwnerTenantId: r.TenantId}}}, nil

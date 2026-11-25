@@ -30,6 +30,7 @@ func TestMiddleware_Authenticate(t *testing.T) {
 		setupMocks         func(*gomock.Controller) TokenVerifierInterface
 		expectedStatusCode int
 		expectedBody       string
+		expectedUserID     string
 	}{
 		{
 			name:       "Missing token - rejects request",
@@ -39,6 +40,7 @@ func TestMiddleware_Authenticate(t *testing.T) {
 				return mockVerifier
 			},
 			expectedStatusCode: http.StatusUnauthorized,
+			expectedBody:       `{"message":"missing authorization header","status":401}` + "\n",
 		},
 		{
 			name:       "Invalid token format - rejects request",
@@ -48,6 +50,7 @@ func TestMiddleware_Authenticate(t *testing.T) {
 				return mockVerifier
 			},
 			expectedStatusCode: http.StatusUnauthorized,
+			expectedBody:       `{"message":"missing authorization header","status":401}` + "\n",
 		},
 		{
 			name:       "Token verification fails - rejects request",
@@ -58,6 +61,7 @@ func TestMiddleware_Authenticate(t *testing.T) {
 				return mockVerifier
 			},
 			expectedStatusCode: http.StatusUnauthorized,
+			expectedBody:       `{"message":"invalid token","status":401}` + "\n",
 		},
 		{
 			name:       "Valid token",
@@ -69,6 +73,7 @@ func TestMiddleware_Authenticate(t *testing.T) {
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedBody:       "success",
+			expectedUserID:     "user-123",
 		},
 	}
 
@@ -89,7 +94,9 @@ func TestMiddleware_Authenticate(t *testing.T) {
 
 			middleware := NewMiddleware(mockVerifier, mockTracer, mockMonitor, mockLogger)
 
+			var userID string
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				userID, _ = GetUserID(r.Context())
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("success"))
 			})
@@ -106,8 +113,20 @@ func TestMiddleware_Authenticate(t *testing.T) {
 				t.Errorf("expected status %d, got %d", tt.expectedStatusCode, rr.Code)
 			}
 
-			if tt.expectedBody != "" && rr.Body.String() != tt.expectedBody {
+			if rr.Body.String() != tt.expectedBody {
 				t.Errorf("expected body %q, got %q", tt.expectedBody, rr.Body.String())
+			}
+
+			expectedChallenge := ""
+			if tt.expectedStatusCode == http.StatusUnauthorized {
+				expectedChallenge = "Bearer"
+			}
+			if got := rr.Header().Get("WWW-Authenticate"); got != expectedChallenge {
+				t.Errorf("expected WWW-Authenticate %q, got %q", expectedChallenge, got)
+			}
+
+			if userID != tt.expectedUserID {
+				t.Errorf("expected user ID %q, got %q", tt.expectedUserID, userID)
 			}
 		})
 	}
@@ -135,6 +154,18 @@ func TestMiddleware_GetBearerToken(t *testing.T) {
 		{
 			name:          "Raw token without Bearer prefix",
 			authHeader:    "my-token-123",
+			expectedToken: "",
+			expectedFound: false,
+		},
+		{
+			name:          "Scheme in lower case",
+			authHeader:    "bearer abc",
+			expectedToken: "abc",
+			expectedFound: true,
+		},
+		{
+			name:          "Space inside the token",
+			authHeader:    "Bearer a b",
 			expectedToken: "",
 			expectedFound: false,
 		},
@@ -208,6 +239,12 @@ func TestMiddleware_GRPCInterceptor(t *testing.T) {
 		{
 			name:     "non-bearer token returns Unauthenticated",
 			ctx:      metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Basic abc")),
+			setup:    func(v *MockTokenVerifierInterface) {},
+			wantCode: codes.Unauthenticated,
+		},
+		{
+			name:     "empty bearer token returns Unauthenticated",
+			ctx:      metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer ")),
 			setup:    func(v *MockTokenVerifierInterface) {},
 			wantCode: codes.Unauthenticated,
 		},
