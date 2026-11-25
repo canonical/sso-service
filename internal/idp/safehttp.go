@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
 	"golang.org/x/net/http/httpproxy"
+	"golang.org/x/net/idna"
 
 	"github.com/canonical/sso-service/internal/limits"
 )
@@ -127,7 +129,7 @@ func (p hostPolicy) dialContext(timeout time.Duration, proxies map[string]bool) 
 
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		// net/http dials with a context that keeps the request's values.
-		if proxied, _ := ctx.Value(proxiedKey{}).(*atomic.Bool); proxied != nil && proxied.Load() && proxies[address] {
+		if proxied, _ := ctx.Value(proxiedKey{}).(*atomic.Bool); proxied != nil && proxied.Load() && proxies[strings.ToLower(address)] {
 			return proxyDialer.DialContext(ctx, network, address)
 		}
 
@@ -136,7 +138,7 @@ func (p hostPolicy) dialContext(timeout time.Duration, proxies map[string]bool) 
 }
 
 // proxyAddresses are the host:port pairs the transport dials for the
-// configuration's proxies, read as httpproxy reads them.
+// configuration's proxies, read as httpproxy reads them, in lower case.
 func proxyAddresses(config *httpproxy.Config) map[string]bool {
 	ports := map[string]string{"http": "80", "https": "443", "socks5": "1080", "socks5h": "1080"}
 	addresses := make(map[string]bool)
@@ -154,7 +156,12 @@ func proxyAddresses(config *httpproxy.Config) map[string]bool {
 		if port == "" {
 			port = ports[u.Scheme]
 		}
-		addresses[net.JoinHostPort(u.Hostname(), port)] = true
+		// The transport dials a non-ASCII name in punycode.
+		host := u.Hostname()
+		if ascii, err := idna.Lookup.ToASCII(host); err == nil {
+			host = ascii
+		}
+		addresses[strings.ToLower(net.JoinHostPort(host, port))] = true
 	}
 
 	return addresses

@@ -192,6 +192,24 @@ func TestHostPolicy_DialContext(t *testing.T) {
 		}
 		conn.Close()
 	})
+
+	// The transport dials a proxy by its name as written, but a non-ASCII name
+	// in punycode.
+	t.Run("proxy by name", func(t *testing.T) {
+		proxies := proxyAddresses(&httpproxy.Config{HTTPProxy: "http://LocalHost:" + port, HTTPSProxy: "http://Prøxy.Example:3128"})
+		proxied := new(atomic.Bool)
+		proxied.Store(true)
+		ctx := context.WithValue(context.Background(), proxiedKey{}, proxied)
+
+		conn, err := hostPolicy{}.dialContext(time.Second, proxies)(ctx, "tcp", net.JoinHostPort("LocalHost", port))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		conn.Close()
+		if !proxies["xn--prxy-hra.example:3128"] {
+			t.Errorf("expected the non-ASCII proxy in punycode, got %v", proxies)
+		}
+	})
 }
 
 // The scheme rule is applied to every request the client sends, whatever
