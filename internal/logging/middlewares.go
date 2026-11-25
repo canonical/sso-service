@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -49,8 +51,7 @@ func (l *LogFormatter) NewLogEntry(r *http.Request) middleware.LogEntry {
 		scheme = "https"
 	}
 
-	// The path only: a query holds authorization codes and addresses.
-	fmt.Fprintf(entry.buf, "%s://%s%s %s ", scheme, r.Host, r.URL.Path, r.Proto)
+	fmt.Fprintf(entry.buf, "%s://%s%s %s ", scheme, r.Host, redactedURI(r.URL), r.Proto)
 	fmt.Fprintf(entry.buf, "from %s ", r.RemoteAddr)
 
 	return entry
@@ -79,4 +80,25 @@ func NewLogFormatter(logger LoggerInterface) *LogFormatter {
 	l.Logger = logger
 
 	return l
+}
+
+// redactedURI is the request URI with every query value replaced, because a
+// query can hold authorization codes and addresses. The names stay, in their order.
+func redactedURI(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+
+	if u.RawQuery == "" {
+		return u.EscapedPath()
+	}
+
+	params := strings.Split(u.RawQuery, "&")
+	for i, param := range params {
+		if name, _, found := strings.Cut(param, "="); found {
+			params[i] = name + "=REDACTED"
+		}
+	}
+
+	return u.EscapedPath() + "?" + strings.Join(params, "&")
 }

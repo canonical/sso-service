@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +15,27 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestLogFormatter_NoQueryNoHeaders(t *testing.T) {
+func TestRedactedURI(t *testing.T) {
+	tests := []struct {
+		uri, want string
+	}{
+		{"/callback/c", "/callback/c"},
+		{"/callback/c?code=one-time-code&state=st", "/callback/c?code=REDACTED&state=REDACTED"},
+		{"/login?debug&login_challenge=", "/login?debug&login_challenge=REDACTED"},
+	}
+
+	for _, tt := range tests {
+		u, err := url.ParseRequestURI(tt.uri)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := redactedURI(u); got != tt.want {
+			t.Errorf("redactedURI(%q) = %q, want %q", tt.uri, got, tt.want)
+		}
+	}
+}
+
+func TestLogFormatter_RedactedQueryNoHeaders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockLogger := NewMockLoggerInterface(ctrl)
 
@@ -25,10 +46,10 @@ func TestLogFormatter_NoQueryNoHeaders(t *testing.T) {
 	entry := NewLogFormatter(mockLogger).NewLogEntry(r)
 	entry.Write(http.StatusSeeOther, 0, http.Header{"Set-Cookie": {"binding=sealed-value"}}, time.Millisecond, nil)
 
-	if !strings.Contains(line, "/callback/c ") || !strings.Contains(line, "303") {
-		t.Errorf("expected the path and the status, got %q", line)
+	if !strings.Contains(line, "/callback/c?code=REDACTED&state=REDACTED ") || !strings.Contains(line, "303") {
+		t.Errorf("expected the redacted URI and the status, got %q", line)
 	}
 	if strings.Contains(line, "one-time-code") || strings.Contains(line, "sealed-value") {
-		t.Errorf("expected no query and no headers, got %q", line)
+		t.Errorf("expected no query value and no headers, got %q", line)
 	}
 }
