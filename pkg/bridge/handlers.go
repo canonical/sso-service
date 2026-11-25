@@ -4,6 +4,7 @@
 package bridge
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -205,7 +206,12 @@ func (a *API) fail(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrUnknownState), errors.Is(err, ErrUnknownLogin):
 		renderPage(w, http.StatusBadRequest, messagePage("Sign-in failed", "This sign-in is unknown, has expired or was already used. Please start again."))
 	default:
-		a.logger.Errorw("company sign-in failed", "error", err)
+		// A browser that went away is not a failure of this service.
+		if errors.Is(err, context.Canceled) {
+			a.logger.Debugw("company sign-in cancelled", "error", err)
+		} else {
+			a.logger.Errorw("company sign-in failed", "error", err)
+		}
 		renderPage(w, http.StatusInternalServerError, messagePage("Sign-in failed", "Company sign-in is unavailable right now. Please try again later."))
 	}
 }
