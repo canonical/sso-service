@@ -87,7 +87,7 @@ These failures have no reason:
 | `NOT_FOUND` | 404 | no such tenant, no such account, no link at the connection, or an unknown route |
 | `ABORTED` | 409 | another request holds the resource. The caller can try again at once |
 | `UNAVAILABLE` | 503 | the tenant service, Kratos or the database did not answer in time. The caller can try again later |
-| `CANCELED` | 499 | the caller went away |
+| `CANCELED` | 499 | the caller cancelled the call. This code also applies when the cancellation stops a call to the tenant service or Kratos. The system then does not answer `UNAVAILABLE` |
 | `INTERNAL` | 500 | anything else. The message is `internal error` and the cause is in the log |
 
 #### Scenario: One refusal on both transports
@@ -95,4 +95,8 @@ These failures have no reason:
 - **THEN** over HTTP the system answers 404 with `{"status": 404, "message": "CONNECTION_NOT_FOUND: no such connection"}`
 - **AND** over gRPC the status is `NOT_FOUND` with the same message
 - **AND** the gRPC status has an `ErrorInfo` with the reason `CONNECTION_NOT_FOUND` and the domain `sso-service`
+
+#### Scenario: A call that its caller cancels
+- **WHEN** a caller cancels a call while the system waits for the tenant service or Kratos
+- **THEN** the call ends with `CANCELED`, not `UNAVAILABLE`
 

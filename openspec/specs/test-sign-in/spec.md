@@ -13,7 +13,7 @@ Key decisions:
 Non-goals:
 
 - a test as a particular user
-- a check of `email_verified` or of the address during a test
+- a check of the address during a test
 
 ## Requirements
 ### Requirement: Start a test sign-in
@@ -69,7 +69,10 @@ In all other cases the system SHALL exchange the code and verify the id_token as
 | the system cannot decrypt the client secret | `Test sign-in failed`: the client secret could not be read |
 | the exchange or the id_token checks fail | `Test sign-in failed`, with the service's message for the kind of failure |
 | the id_token has no `email` | `Test sign-in failed`: the provider asserted no email address, so members cannot be matched to their accounts |
+| the id_token has `email_verified: false` | `Test sign-in failed`: `The identity provider marks this account's email address as not confirmed, so its sign-ins would be refused.` |
 | everything passes | `Test sign-in succeeded`, with the connection's label |
+
+The system SHALL fail a test when the id_token has `email_verified: false`. A company sign-in with that answer fails (see `company-sign-in`). Thus a provider that marks every address as not confirmed cannot pass its test. An id_token with no `email_verified` passes.
 
 A failed test changes nothing. A test involves no link, account, session or hydra-sso login.
 
@@ -78,6 +81,12 @@ A failed test changes nothing. A test involves no link, account, session or hydr
 - **AND** the identity provider sends the admin back to the connection's redirect URI
 - **THEN** the page says that the test sign-in succeeded
 - **AND** the connection is tested
+
+#### Scenario: The provider marks the address as not confirmed
+- **WHEN** an admin finishes a test, and the id_token has `email_verified: false`
+- **THEN** the page says that the test sign-in failed
+- **AND** the page says that the provider marks the address as not confirmed
+- **AND** the status of the connection does not change
 
 #### Scenario: The answer arrives at another tenant's redirect URI
 - **WHEN** a person opens the answer of a test at `/callback/<another tenant's id>`

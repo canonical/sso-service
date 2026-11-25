@@ -223,5 +223,6 @@ Every page is HTML with `Cache-Control: no-store`, a content security policy tha
 - **WHEN** the identity provider sends the browser back with `error=access_denied&error_description=<any text>`
 - **THEN** the system rejects the login request with the message of `idp_refused`
 - **AND** the identity provider's text appears only in the log
-- **AND** the log has that text cut to 120 bytes, with control characters removed
+- **AND** the log keeps only the printable characters of that text
+- **AND** the log cuts that text to at most 120 bytes, between 2 characters
 
