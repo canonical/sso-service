@@ -174,6 +174,25 @@ func TestClient_RejectLogin(t *testing.T) {
 	}
 }
 
+func TestClient_NoRedirect(t *testing.T) {
+	c := newClient(t, &fakeAdmin{})
+	calls := map[string]func() (string, error){
+		"accept login": func() (string, error) { return c.AcceptLogin(context.Background(), "lc", "conn:sub", nil) },
+		"reject login": func() (string, error) { return c.RejectLogin(context.Background(), "lc", "refused") },
+		"accept consent": func() (string, error) {
+			return c.AcceptConsent(context.Background(), &ConsentRequest{Challenge: "cc"}, nil)
+		},
+	}
+
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			if _, err := call(); !errors.Is(err, errNoRedirect) {
+				t.Errorf("expected errNoRedirect, got %v", err)
+			}
+		})
+	}
+}
+
 func TestClient_GetConsentRequest(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		f := &fakeAdmin{answer: consentRequest()}

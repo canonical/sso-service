@@ -85,6 +85,9 @@ func (c *Client) AcceptLogin(ctx context.Context, challenge, subject string, log
 	if err != nil {
 		return "", recordError(span, fmt.Errorf("failed to accept login request: %w", responseError(response, err)))
 	}
+	if to == nil {
+		return "", recordError(span, fmt.Errorf("failed to accept login request: %w", errNoRedirect))
+	}
 
 	return to.RedirectTo, nil
 }
@@ -98,6 +101,9 @@ func (c *Client) RejectLogin(ctx context.Context, challenge, description string)
 		RejectOAuth2Request(client.RejectOAuth2Request{Error: &code, ErrorDescription: &description}).Execute()
 	if err != nil {
 		return "", recordError(span, fmt.Errorf("failed to reject login request: %w", responseError(response, err)))
+	}
+	if to == nil {
+		return "", recordError(span, fmt.Errorf("failed to reject login request: %w", errNoRedirect))
 	}
 
 	return to.RedirectTo, nil
@@ -135,6 +141,9 @@ func (c *Client) AcceptConsent(ctx context.Context, request *ConsentRequest, idT
 		}).Execute()
 	if err != nil {
 		return "", recordError(span, fmt.Errorf("failed to accept consent request: %w", responseError(response, err)))
+	}
+	if to == nil {
+		return "", recordError(span, fmt.Errorf("failed to accept consent request: %w", errNoRedirect))
 	}
 
 	return to.RedirectTo, nil
