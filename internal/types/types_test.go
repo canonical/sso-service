@@ -4,6 +4,7 @@
 package types
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -102,6 +103,7 @@ func TestSplitHydraSubject(t *testing.T) {
 		{name: "not a uuid", value: "not-a-uuid:s"},
 		{name: "a provider", value: "google:s"},
 		{name: "braced uuid", value: "{" + conn + "}:s"},
+		{name: "upper-case uuid", value: strings.ToUpper(conn) + ":s"},
 	}
 
 	for _, tc := range testCases {

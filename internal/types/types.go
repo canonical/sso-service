@@ -100,14 +100,15 @@ func HydraSubject(connectionID, subject string) string {
 	return connectionID + ":" + subject
 }
 
-// SplitHydraSubject splits at the first colon: a connection id is a UUID,
-// which holds none, while an identity provider's subject may.
+// SplitHydraSubject splits at the first colon: a connection id is a UUID in
+// its canonical form, which holds none, while an identity provider's subject
+// may.
 func SplitHydraSubject(value string) (connectionID, subject string, ok bool) {
 	connectionID, subject, ok = strings.Cut(value, ":")
 	if !ok || subject == "" {
 		return "", "", false
 	}
-	if _, err := uuid.Parse(connectionID); err != nil || len(connectionID) != 36 {
+	if id, err := uuid.Parse(connectionID); err != nil || id.String() != connectionID {
 		return "", "", false
 	}
 
