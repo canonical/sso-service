@@ -1,7 +1,7 @@
 name: sso-service
 base: bare
 build-base: ubuntu@24.04
-version: 0.1.0 # x-release-please-version
+version: 1.0.0
 summary: Canonical Identity Platform SSO Service
 description: >
   sso-service brings a tenant's own OpenID Connect provider to the Canonical
